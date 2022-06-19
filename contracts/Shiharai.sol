@@ -1,17 +1,10 @@
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "hardhat/console.sol";
 
-contract Shiharai is Ownable {
-    State public paymentsState;
-    enum State {
-        Allowed,
-        Blocked
-    }
-
+contract Shiharai {
     IERC20 public communityToken;
 
     struct Token {
@@ -20,16 +13,36 @@ contract Shiharai is Ownable {
     }
     mapping(address => Token) public supportedTokensMap;
 
-    struct Agreement {
-        address with;
+    struct VestingCondition {
+        uint256 cliff;
+        uint256 duration;
+        uint256 revokeDays; // anytime -> 1day, each 3month -> 90
+    }
+
+    struct Payment {
         address token;
         uint256 amount;
+        VestingCondition condition;
+    }
+
+    struct DepositAmount {
+        address token;
+        uint256 amount;
+    }
+
+    struct Agreement {
+        address issuer;
+        address contracter;
+        Payment[] payments;
         uint256 term;
-        uint256 timestamp;
-        bool isConfirmed;
+        uint256 issuedAt;
+        uint256 confirmedAt;
+        uint256 depositedAt;
         // potentially additional description
     }
+
     mapping(address => Agreement[]) public agreementsMap;
+    mapping(Agreement => DepositAmount) public depositedAmount;
 
     constructor(address _erc20) {
         setSupportedToken(_erc20);
@@ -41,25 +54,6 @@ contract Shiharai is Ownable {
 
     // modifier
 
-    // onlyOwner
-    function setCommunityToken(address _address) public onlyOwner {
-        communityToken = IERC20(_address);
-    }
-
-    function setSupportedToken(address _address) public onlyOwner {
-        supportedTokensMap[_address] = Token(_address);
-    }
-
-    function claimTokenFunds(address _tokenAddress) external onlyOwner {}
-
-    function blockPayments() external onlyOwner {
-        paymentsState = State.Blocked;
-    }
-
-    function allowPayments() external onlyOwner {
-        paymentsState = State.Allowed;
-    }
-
     // public
     function issueAgreement(
         address _with,
@@ -70,23 +64,27 @@ contract Shiharai is Ownable {
         // Maybe we should limit to one contract at the same time.
     }
 
-    function withdrawalAgreement(address _with) public {}
+    function getAgreements(address protocol) public {
+    }
 
-    function confirmAgreement() public {
+    function withdrawalAgreement(address _with) public {
+    }
+
+    function continueAgreements(uint256[] _id) public {
+    }
+
+    function continueAgreement(uint256 _id) public {
+    }
+
+    function confirmAgreement(uint256 _id) public {
         // emit Agreed(with, amount, term, timestamp);
     }
 
-    function depositSalary(uint256 _amount) public {}
-
-    function claimToken() public {
+    function claim() public {
         // emit Claimed(tokenAddress);
     }
 
-    function depositToken(uint256 _amount) public {}
-
-    function claimSalary() public {
-        // emit Claimed(tokenAddress);
-    }
+    function deposit(uint256 _amount, address token) public {}
 
     // internal
 
