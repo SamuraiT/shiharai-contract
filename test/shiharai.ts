@@ -21,9 +21,9 @@ describe('Shiharai', function () {
     await shirahaiContract.deployed()
   })
 
-  describe('setERC20', () => {
-    it('setErc20 successfully', async () => {
-      await shirahaiContract.setERC20(ethers.constants.AddressZero)
+  describe('setSupportedToken', () => {
+    it('setSupportedToken successfully', async () => {
+      await shirahaiContract.setSupportedToken(ethers.constants.AddressZero)
       expect(await shirahaiContract.supportedTokensMap(erc20.address)).to.be.eq(
         erc20.address
       )
@@ -34,7 +34,9 @@ describe('Shiharai', function () {
 
     it('reverts with none owner', async () => {
       await expect(
-        shirahaiContract.connect(alice).setERC20(ethers.constants.AddressZero)
+        shirahaiContract
+          .connect(alice)
+          .setSupportedToken(ethers.constants.AddressZero)
       ).to.be.reverted
       expect(await shirahaiContract.supportedTokensMap(erc20.address)).to.be.eq(
         erc20.address
