@@ -6,16 +6,40 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "hardhat/console.sol";
 
 contract Shiharai is Ownable {
-    IERC20 public erc20;
+    State public paymentsState;
+    enum State {
+        Allowed,
+        Blocked
+    }
+
+    struct Token {
+        address id;
+    }
+    mapping(address => Token) public supportedTokensMap;
 
     constructor(address _erc20) {
         setERC20(_erc20);
     }
 
-    // onlyOwner //
+    // modifier
+
+    // onlyOwner
+
     function setERC20(address _addr) public onlyOwner {
-        erc20 = IERC20(_addr);
+        supportedTokensMap[_addr] = Token(_addr);
     }
 
-    // public //
+    function claimTokenFunds(address tokenAddress) external onlyOwner {}
+
+    function blockPayments() external onlyOwner {
+        paymentsState = State.Blocked;
+    }
+
+    function allowPayments() external onlyOwner {
+        paymentsState = State.Allowed;
+    }
+
+    // public
+
+    // internal
 }

@@ -24,16 +24,21 @@ describe('Shiharai', function () {
   describe('setERC20', () => {
     it('setErc20 successfully', async () => {
       await shirahaiContract.setERC20(ethers.constants.AddressZero)
-      expect(await shirahaiContract.erc20()).to.be.eq(
-        ethers.constants.AddressZero
+      expect(await shirahaiContract.supportedTokensMap(erc20.address)).to.be.eq(
+        erc20.address
       )
+      expect(
+        await shirahaiContract.supportedTokensMap(ethers.constants.AddressZero)
+      ).to.be.eq(ethers.constants.AddressZero)
     })
 
     it('reverts with none owner', async () => {
       await expect(
         shirahaiContract.connect(alice).setERC20(ethers.constants.AddressZero)
       ).to.be.reverted
-      expect(await shirahaiContract.erc20()).to.be.eq(erc20.address)
+      expect(await shirahaiContract.supportedTokensMap(erc20.address)).to.be.eq(
+        erc20.address
+      )
     })
   })
 })
