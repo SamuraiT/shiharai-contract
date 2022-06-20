@@ -1,17 +1,16 @@
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "hardhat/console.sol";
 
 contract Shiharai {
-    IERC20 public communityToken;
+    using Counters for Counters.Counter;
+    Counters.Counter private _agreemtnIds;
 
-    struct Token {
-        address id;
-        // Assuming additional status
-    }
-    mapping(address => Token) public supportedTokensMap;
+    // key is token address to pay, and value is redeemable tokenX
+    mapping(address => address) public supportedTokensMap;
 
     struct VestingCondition {
         uint256 cliff;
@@ -19,30 +18,32 @@ contract Shiharai {
         uint256 revokeDays; // anytime -> 1day, each 3month -> 90
     }
 
-    struct Payment {
-        address token;
-        uint256 amount;
-        VestingCondition condition;
-    }
-
-    struct DepositAmount {
+    struct TokenAmount {
         address token;
         uint256 amount;
     }
 
     struct Agreement {
         address issuer;
-        address contracter;
-        Payment[] payments;
+        address undertaker;
+        // Supports stable token for payment as well as governce tokens for vestiges
+        address payment;
+        uint256 id;
+        uint256 amount;
         uint256 term;
         uint256 issuedAt;
         uint256 confirmedAt;
         uint256 depositedAt;
-        // potentially additional description
     }
 
-    mapping(address => Agreement[]) public agreementsMap;
-    mapping(Agreement => DepositAmount) public depositedAmount;
+    // key is protocol address
+    mapping(address => Agreement[]) public issuedAgreementsMap;
+    // key is udertaker address
+    mapping(address => Agreement[]) public undertakenAgreementsMap;
+    // key is agreement id
+    mapping(uint256 => TokenAmount) public depositedAmountMap;
+    mapping(uint256 => TokenAmount) public redeemedAmountMap; // tokenX
+    mapping(uint256 => VestingCondition) public vestingConditionMap;
 
     constructor(address _erc20) {
         setSupportedToken(_erc20);
@@ -55,6 +56,12 @@ contract Shiharai {
     // modifier
 
     // public
+
+    function setSupportedToken(address _address) public {
+        address tokenX = createXToken(_address);
+        supportedTokensMap[_address] = tokenX;
+    }
+
     function issueAgreement(
         address _with,
         address _token,
@@ -64,17 +71,15 @@ contract Shiharai {
         // Maybe we should limit to one contract at the same time.
     }
 
-    function getAgreements(address protocol) public {
-    }
+    function deposit(address _token, uint256 _amount) public {}
 
-    function withdrawalAgreement(address _with) public {
-    }
+    function getAgreements(address protocol) public {}
 
-    function continueAgreements(uint256[] _id) public {
-    }
+    function withdrawalAgreement(address _with) public {}
 
-    function continueAgreement(uint256 _id) public {
-    }
+    function continueAgreements(uint256[] memory _ids) public {}
+
+    function continueAgreement(uint256 _id) public {}
 
     function confirmAgreement(uint256 _id) public {
         // emit Agreed(with, amount, term, timestamp);
@@ -84,9 +89,8 @@ contract Shiharai {
         // emit Claimed(tokenAddress);
     }
 
-    function deposit(uint256 _amount, address token) public {}
-
     // internal
-
-    function vestToken(address _to) internal {}
+    function createXToken(address _token) internal returns (address) {
+        return _token; // need to create XToken
+    }
 }
