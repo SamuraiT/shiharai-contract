@@ -26,6 +26,7 @@ contract Shiharai {
     struct Agreement {
         address issuer;
         address undertaker;
+        bytes32 name;
         // Supports stable token for payment as well as governce tokens for vestiges
         address payment;
         uint256 id;
@@ -64,6 +65,7 @@ contract Shiharai {
     }
 
     function issueAgreement(
+        bytes32 _name,
         address _with,
         address _token,
         uint256 _amount,
@@ -89,6 +91,7 @@ contract Shiharai {
     }
 
     function depositAndissueAgreement(
+        bytes32 _name,
         address _with,
         address _token,
         uint256 _amount,
