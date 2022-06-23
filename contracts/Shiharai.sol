@@ -13,8 +13,8 @@ contract Shiharai {
     mapping(address => address) public supportedTokensMap;
 
     struct VestingCondition {
-        uint256 cliff;
-        uint256 duration;
+        uint256 cliff; // days
+        uint256 duration; // days
         uint256 revokeDays; // anytime -> 1day, each 3month -> 90
     }
 
@@ -34,6 +34,7 @@ contract Shiharai {
         uint256 issuedAt;
         uint256 confirmedAt;
         uint256 depositedAt;
+        uint256 paysAt; // unixtime stamp for vesting it would be 0.
     }
 
     // key is protocol address
@@ -58,7 +59,7 @@ contract Shiharai {
     // public
 
     function setSupportedToken(address _address) public {
-        address tokenX = createXToken(_address);
+        address tokenX = createCToken(_address);
         supportedTokensMap[_address] = tokenX;
     }
 
@@ -66,14 +67,16 @@ contract Shiharai {
         address _with,
         address _token,
         uint256 _amount,
-        uint256 _term
+        uint256 _term,
+        uint256 _paysAt
     ) public {
         // Maybe we should limit to one contract at the same time.
     }
 
     function deposit(address _token, uint256 _amount) public {}
 
-    function getAgreements(address protocol) public {}
+    function getAgreements(address protocol) public {
+    }
 
     function withdrawalAgreement(address _with) public {}
 
@@ -85,12 +88,38 @@ contract Shiharai {
         // emit Agreed(with, amount, term, timestamp);
     }
 
+    function depositAndissueAgreement(
+        address _with,
+        address _token,
+        uint256 _amount,
+        uint256 _term,
+        uint256 _paysAt
+    ) public {}
+
     function claim() public {
+        // exchange with ctoken
         // emit Claimed(tokenAddress);
     }
 
+    function claimForLendingProctol() public {
+        // lending protocol can claim
+        // for lending proctol we will allow to transfer deposit money
+    }
+
+    function addLendingProtocol(address _protocol) public {
+        // should be onlyOwner
+        // add white list
+        // better to be done with merkel root
+    }
+
     // internal
-    function createXToken(address _token) internal returns (address) {
+    function createCToken(address _token) internal returns (address) {
         return _token; // need to create XToken
     }
+
+    function approveof(address _spender) public {
+        // approve of lending protocol with all tokens
+        // only owner
+    }
+
 }
