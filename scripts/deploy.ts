@@ -8,7 +8,8 @@ import { ethers } from 'hardhat'
 const main = async () => {
   const Usdc = await ethers.getContractFactory('MockERC20')
   const usdc = await Usdc.deploy('test-usdc')
-  await usdc.wait()
+  await usdc.deployed()
+
   console.log('usdc', usdc.address)
   const Shihari = await ethers.getContractFactory('Shiharai')
   const shihari = await Shihari.deploy(usdc.address)
