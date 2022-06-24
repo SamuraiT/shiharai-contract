@@ -1,0 +1,522 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "Shiharai",
+  "sourceName": "contracts/Shiharai.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_erc20",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "with",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "term",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "Agreed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        }
+      ],
+      "name": "Claimed",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_protocol",
+          "type": "address"
+        }
+      ],
+      "name": "addLendingProtocol",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_spender",
+          "type": "address"
+        }
+      ],
+      "name": "approveof",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "claim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "claimForLendingProctol",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_id",
+          "type": "uint256"
+        }
+      ],
+      "name": "confirmAgreement",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_id",
+          "type": "uint256"
+        }
+      ],
+      "name": "continueAgreement",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "_ids",
+          "type": "uint256[]"
+        }
+      ],
+      "name": "continueAgreements",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "deposit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_name",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "_with",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_term",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_paysAt",
+          "type": "uint256"
+        }
+      ],
+      "name": "depositAndissueAgreement",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "depositedAmountMap",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "protocol",
+          "type": "address"
+        }
+      ],
+      "name": "getAgreements",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_name",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "_with",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_term",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_paysAt",
+          "type": "uint256"
+        }
+      ],
+      "name": "issueAgreement",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "issuedAgreementsMap",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "issuer",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "undertaker",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "name",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "payment",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "term",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "issuedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "confirmedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "depositedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "paysAt",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "redeemedAmountMap",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_address",
+          "type": "address"
+        }
+      ],
+      "name": "setSupportedToken",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "supportedTokensMap",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "undertakenAgreementsMap",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "issuer",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "undertaker",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "name",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "payment",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "term",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "issuedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "confirmedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "depositedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "paysAt",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "vestingConditionMap",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "cliff",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "duration",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "revokeDays",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_with",
+          "type": "address"
+        }
+      ],
+      "name": "withdrawalAgreement",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5060405161067538038061067583398101604081905261002f91610063565b61005d816001600160a01b0316600081815260016020526040902080546001600160a01b0319169091179055565b50610091565b600060208284031215610074578081fd5b81516001600160a01b038116811461008a578182fd5b9392505050565b6105d5806100a06000396000f3fe608060405234801561001057600080fd5b50600436106101215760003560e01c80635fbd5bed116100ad578063bc2f2dcf11610071578063bc2f2dcf146102be578063ca72595c146102f6578063d345ad571461027d578063e3cf63a514610340578063eb5c68e71461012657600080fd5b80635fbd5bed146101b95780637c05798c1461027d57806389e0a6831461013c57806398776efa146101b95780639901255e1461028b57600080fd5b80633f270e62116100f45780633f270e62146101ca578063424690bb146101d857806347e7ef241461022a5780634e71d92d1461013c57806353dc78131461023c57600080fd5b806317c4e305146101265780631c1ee35c1461013e57806332c833c0146101b95780633ecfebcd146101b9575b600080fd5b61013c61013436600461051a565b505050505050565b005b61015161014c366004610431565b610353565b604080516001600160a01b039c8d1681529a8c1660208c01528a0198909852989095166060880152608087019390935260a086019190915260c085015260e0840152610100830152610120820192909252610140810191909152610160015b60405180910390f35b61013c6101c7366004610410565b50565b61013c6101c736600461045a565b61020b6101e6366004610571565b600560205260009081526040902080546001909101546001600160a01b039091169082565b604080516001600160a01b0390931683526020830191909152016101b0565b61013c610238366004610431565b5050565b61026561024a366004610410565b6001602052600090815260409020546001600160a01b031681565b6040516001600160a01b0390911681526020016101b0565b61013c6101c7366004610571565b61020b610299366004610571565b600460205260009081526040902080546001909101546001600160a01b039091169082565b61013c6102cc366004610410565b6001600160a01b0316600081815260016020526040902080546001600160a01b0319169091179055565b610325610304366004610571565b60066020526000908152604090208054600182015460029092015490919083565b604080519384526020840192909252908201526060016101b0565b61015161034e366004610431565b6103d8565b6003602052816000526040600020818154811061036f57600080fd5b60009182526020909120600b9091020180546001820154600283015460038401546004850154600586015460068701546007880154600889015460098a0154600a909a01546001600160a01b03998a169c509789169a509598949097169692959194909390918b565b6002602052816000526040600020818154811061036f57600080fd5b80356001600160a01b038116811461040b57600080fd5b919050565b600060208284031215610421578081fd5b61042a826103f4565b9392505050565b60008060408385031215610443578081fd5b61044c836103f4565b946020939093013593505050565b6000602080838503121561046c578182fd5b823567ffffffffffffffff80821115610483578384fd5b818501915085601f830112610496578384fd5b8135818111156104a8576104a8610589565b8060051b604051601f19603f830116810181811085821117156104cd576104cd610589565b604052828152858101935084860182860187018a10156104eb578788fd5b8795505b8386101561050d5780358552600195909501949386019386016104ef565b5098975050505050505050565b60008060008060008060c08789031215610532578182fd5b86359550610542602088016103f4565b9450610550604088016103f4565b9350606087013592506080870135915060a087013590509295509295509295565b600060208284031215610582578081fd5b5035919050565b634e487b7160e01b600052604160045260246000fdfea2646970667358221220c21f5fdfdbba683774ca9841b1a431847d08091ea0fb238f8bba4aba2b072e2f64736f6c63430008040033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106101215760003560e01c80635fbd5bed116100ad578063bc2f2dcf11610071578063bc2f2dcf146102be578063ca72595c146102f6578063d345ad571461027d578063e3cf63a514610340578063eb5c68e71461012657600080fd5b80635fbd5bed146101b95780637c05798c1461027d57806389e0a6831461013c57806398776efa146101b95780639901255e1461028b57600080fd5b80633f270e62116100f45780633f270e62146101ca578063424690bb146101d857806347e7ef241461022a5780634e71d92d1461013c57806353dc78131461023c57600080fd5b806317c4e305146101265780631c1ee35c1461013e57806332c833c0146101b95780633ecfebcd146101b9575b600080fd5b61013c61013436600461051a565b505050505050565b005b61015161014c366004610431565b610353565b604080516001600160a01b039c8d1681529a8c1660208c01528a0198909852989095166060880152608087019390935260a086019190915260c085015260e0840152610100830152610120820192909252610140810191909152610160015b60405180910390f35b61013c6101c7366004610410565b50565b61013c6101c736600461045a565b61020b6101e6366004610571565b600560205260009081526040902080546001909101546001600160a01b039091169082565b604080516001600160a01b0390931683526020830191909152016101b0565b61013c610238366004610431565b5050565b61026561024a366004610410565b6001602052600090815260409020546001600160a01b031681565b6040516001600160a01b0390911681526020016101b0565b61013c6101c7366004610571565b61020b610299366004610571565b600460205260009081526040902080546001909101546001600160a01b039091169082565b61013c6102cc366004610410565b6001600160a01b0316600081815260016020526040902080546001600160a01b0319169091179055565b610325610304366004610571565b60066020526000908152604090208054600182015460029092015490919083565b604080519384526020840192909252908201526060016101b0565b61015161034e366004610431565b6103d8565b6003602052816000526040600020818154811061036f57600080fd5b60009182526020909120600b9091020180546001820154600283015460038401546004850154600586015460068701546007880154600889015460098a0154600a909a01546001600160a01b03998a169c509789169a509598949097169692959194909390918b565b6002602052816000526040600020818154811061036f57600080fd5b80356001600160a01b038116811461040b57600080fd5b919050565b600060208284031215610421578081fd5b61042a826103f4565b9392505050565b60008060408385031215610443578081fd5b61044c836103f4565b946020939093013593505050565b6000602080838503121561046c578182fd5b823567ffffffffffffffff80821115610483578384fd5b818501915085601f830112610496578384fd5b8135818111156104a8576104a8610589565b8060051b604051601f19603f830116810181811085821117156104cd576104cd610589565b604052828152858101935084860182860187018a10156104eb578788fd5b8795505b8386101561050d5780358552600195909501949386019386016104ef565b5098975050505050505050565b60008060008060008060c08789031215610532578182fd5b86359550610542602088016103f4565b9450610550604088016103f4565b9350606087013592506080870135915060a087013590509295509295509295565b600060208284031215610582578081fd5b5035919050565b634e487b7160e01b600052604160045260246000fdfea2646970667358221220c21f5fdfdbba683774ca9841b1a431847d08091ea0fb238f8bba4aba2b072e2f64736f6c63430008040033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
