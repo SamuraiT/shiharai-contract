@@ -46,7 +46,6 @@ contract Shiharai {
     mapping(uint256 => TokenAmount) public depositedAmountMap;
     mapping(uint256 => TokenAmount) public redeemedAmountMap; // tokenX
     mapping(uint256 => VestingCondition) public vestingConditionMap;
-
     constructor(address _erc20) {
         setSupportedToken(_erc20);
     }
