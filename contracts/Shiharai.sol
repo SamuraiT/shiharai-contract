@@ -38,17 +38,13 @@ contract Shiharai {
         uint256 paysAt; // unixtime stamp for vesting it would be 0.
     }
 
-    // key is protocol address
-    mapping(address => Agreement[]) public issuedagreementsmap;
-    // key is udertaker address
-    mapping(address => Agreement[]) public undertakenAgreementsMap;
-    // key is agreement id
     mapping(address => mapping(address => uint256)) public depositedAmountMap;
     mapping(uint256 => mapping(address => uint256)) public depositByAgreement;
     mapping(uint256 => TokenAmount) public redeemedAmountMap; // tokenX
     mapping(uint256 => VestingCondition) public vestingConditionMap;
     mapping(uint256 => Agreement) public agreements;
     mapping(address => uint256[]) public issuerAgreementsIds;
+    mapping(address => uint256[]) public undertakenAgreementIds;
 
     constructor(address _erc20) {
         setSupportedToken(_erc20);
@@ -92,7 +88,6 @@ contract Shiharai {
             depositedAt: _depositAt,
             paysAt: _paysAt
         });
-        issuedagreementsmap[msg.sender].push(ag);
         agreements[_id] = ag;
         issuerAgreementsIds[msg.sender].push(_id);
     }
@@ -102,6 +97,10 @@ contract Shiharai {
         address _token,
         uint256 _amount
     ) public {
+        require(
+            IERC20(_token).balanceOf(msg.sender) >= _amount,
+            "INSUFFICIENT AMOUNT"
+        );
         bool success = IERC20(_token).transferFrom(
             msg.sender,
             address(this),
@@ -140,13 +139,12 @@ contract Shiharai {
         view
         returns (Agreement[] memory)
     {
-        // uint256 size = issuerAgreementsIds[protocol].length;
-        // Agreement[] memory ags = new Agreement[](size);
-        // for (uint256 i=1; i<=size; i++) {
-        //     ags[i] = agreements[i];
-        // }
-        // return ags;
-        return issuedagreementsmap[protocol];
+        uint256 size = issuerAgreementsIds[protocol].length;
+        Agreement[] memory ags = new Agreement[](size);
+        for (uint256 i=1; i<=size; i++) {
+            ags[i] = agreements[i];
+        }
+        return ags;
     }
 
     function withdrawalAgreement(address _with) public {}
