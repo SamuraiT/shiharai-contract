@@ -136,12 +136,24 @@ contract Shiharai {
         );
     }
 
-    function getAgreements(address protocol)
+    function getIssuersAgreements(address protocol)
         public
         view
         returns (Agreement[] memory)
     {
         uint256 size = issuerAgreementsIds[protocol].length;
+        Agreement[] memory ags = new Agreement[](size);
+        for (uint256 i=1; i<=size; i++) {
+            ags[i] = agreements[i];
+        }
+        return ags;
+    }
+    function getUnderTakersAgreements(address _taker)
+        public
+        view
+        returns (Agreement[] memory)
+    {
+        uint256 size = undertakenAgreementIds[_taker].length;
         Agreement[] memory ags = new Agreement[](size);
         for (uint256 i=1; i<=size; i++) {
             ags[i] = agreements[i];
