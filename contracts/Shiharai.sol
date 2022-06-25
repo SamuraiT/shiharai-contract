@@ -34,6 +34,7 @@ contract Shiharai {
         uint256 term;
         uint256 issuedAt;
         uint256 confirmedAt;
+        uint256 continuesAt;
         uint256 depositedAt;
         uint256 paysAt; // unixtime stamp for vesting it would be 0.
     }
@@ -85,6 +86,7 @@ contract Shiharai {
             term: _term, // 1 month
             issuedAt: _now,
             confirmedAt: 0,
+            continuesAt: 0,
             depositedAt: _depositAt,
             paysAt: _paysAt
         });
