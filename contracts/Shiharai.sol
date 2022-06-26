@@ -35,12 +35,11 @@ contract Shiharai {
         uint256 issuedAt;
         uint256 confirmedAt;
         uint256 continuesAt;
-        uint256 depositedAt;
         uint256 paysAt; // unixtime stamp for vesting it would be 0.
     }
 
     mapping(address => mapping(address => uint256)) public depositedAmountMap;
-    mapping(uint256 => mapping(address => uint256)) public depositByAgreement;
+    mapping(address => mapping(address => uint256)) public noneReservedAmount;
     mapping(uint256 => TokenAmount) public redeemedAmountMap; // tokenX
     mapping(uint256 => VestingCondition) public vestingConditionMap;
     mapping(uint256 => Agreement) public agreements;
@@ -53,9 +52,26 @@ contract Shiharai {
 
     // evnet
     event Agreed(address with, uint256 amount, uint256 term, uint256 timestamp);
+    event IssuedAgreement(
+        uint256 indexed id,
+        address indexed issuer,
+        address indexed with,
+        address token,
+        uint256 amount,
+        uint256 paysAt
+    );
+    event Deposit(
+        address indexed issuer,
+        address token,
+        uint256 amount
+    );
     event Claimed(address to);
 
     // modifier
+    modifier nonExistAgreement(uint256 _id) {
+        require(_id > _agreemtnIds.current(), "INVALID: EXIST ID");
+        _;
+    }
 
     // public
 
@@ -65,16 +81,36 @@ contract Shiharai {
     }
 
     function issueAgreement(
+        bytes32 _name,
+        address _with,
+        address _token,
+        uint256 _amount,
+        uint256 _term,
+        uint256 _paysAt
+    ) public {
+        _agreemtnIds.increment();
+        uint256 _newAgId = _agreemtnIds.current();
+        _issueAgreement(_newAgId, _name, _with, _token, _amount, _term, _paysAt);
+    }
+    function _issueAgreement(
         uint256 _id,
         bytes32 _name,
         address _with,
         address _token,
         uint256 _amount,
         uint256 _term,
-        uint256 _depositAt,
         uint256 _paysAt
-    ) public {
-        // Maybe we should limit to one contract at the same time.
+    ) private {
+        require(
+            depositedAmountMap[msg.sender][_token] >= _amount,
+            "INSUFFICIENT AMOUNT"
+        );
+        require(
+            noneReservedAmount[msg.sender][_token] >= _amount,
+            "INSUFFICIENT DEPOSIT"
+        );
+        // also reuqire
+        // amount(all agreed contract) + amount >= _amount
         uint256 _now = block.timestamp;
         Agreement memory ag = Agreement({
             issuer: msg.sender,
@@ -87,15 +123,15 @@ contract Shiharai {
             issuedAt: _now,
             confirmedAt: 0,
             continuesAt: 0,
-            depositedAt: _depositAt,
             paysAt: _paysAt
         });
-        agreements[_id] = ag;
+        noneReservedAmount[msg.sender][_token] -= _amount;
         issuerAgreementsIds[msg.sender].push(_id);
+        agreements[_id] = ag;
+        emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
     }
 
     function deposit(
-        uint256 issueId,
         address _token,
         uint256 _amount
     ) public {
@@ -110,7 +146,8 @@ contract Shiharai {
         );
         require(success, "TX FAILED");
         depositedAmountMap[msg.sender][_token] += _amount;
-        depositByAgreement[issueId][_token] += _amount;
+        noneReservedAmount[msg.sender][_token] += _amount;
+        emit Deposit(msg.sender, _token, _amount);
     }
 
     function depositAndissueAgreement(
@@ -121,17 +158,13 @@ contract Shiharai {
         uint256 _term,
         uint256 _paysAt
     ) public {
-        _agreemtnIds.increment();
-        uint256 _newAgId = _agreemtnIds.current();
-        deposit(_newAgId, _token, _amount);
+        deposit(_token, _amount);
         issueAgreement(
-            _newAgId,
             _name,
             _with,
             _token,
             _amount,
             _term,
-            block.timestamp,
             _paysAt
         );
     }
@@ -142,21 +175,26 @@ contract Shiharai {
         returns (Agreement[] memory)
     {
         uint256 size = issuerAgreementsIds[protocol].length;
+        uint256 _id;
         Agreement[] memory ags = new Agreement[](size);
-        for (uint256 i=1; i<=size; i++) {
-            ags[i] = agreements[i];
+        for (uint256 i = 0; i < size; i++) {
+            _id = issuerAgreementsIds[protocol][i];
+            ags[i] = agreements[_id];
         }
         return ags;
     }
+
     function getUnderTakersAgreements(address _taker)
         public
         view
         returns (Agreement[] memory)
     {
         uint256 size = undertakenAgreementIds[_taker].length;
+        uint256 _id;
         Agreement[] memory ags = new Agreement[](size);
-        for (uint256 i=1; i<=size; i++) {
-            ags[i] = agreements[i];
+        for (uint256 i = 0; i < size; i++) {
+            _id = undertakenAgreementIds[_taker][i];
+            ags[i] = agreements[_id];
         }
         return ags;
     }
