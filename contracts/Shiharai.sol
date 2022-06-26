@@ -34,27 +34,44 @@ contract Shiharai {
         uint256 term;
         uint256 issuedAt;
         uint256 confirmedAt;
-        uint256 depositedAt;
+        uint256 continuesAt;
         uint256 paysAt; // unixtime stamp for vesting it would be 0.
     }
 
-    // key is protocol address
-    mapping(address => Agreement[]) public issuedAgreementsMap;
-    // key is udertaker address
-    mapping(address => Agreement[]) public undertakenAgreementsMap;
-    // key is agreement id
-    mapping(uint256 => TokenAmount) public depositedAmountMap;
+    mapping(address => mapping(address => uint256)) public depositedAmountMap;
+    mapping(address => mapping(address => uint256)) public noneReservedAmount;
     mapping(uint256 => TokenAmount) public redeemedAmountMap; // tokenX
     mapping(uint256 => VestingCondition) public vestingConditionMap;
+    mapping(uint256 => Agreement) public agreements;
+    mapping(address => uint256[]) public issuerAgreementsIds;
+    mapping(address => uint256[]) public undertakenAgreementIds;
+
     constructor(address _erc20) {
         setSupportedToken(_erc20);
     }
 
     // evnet
     event Agreed(address with, uint256 amount, uint256 term, uint256 timestamp);
+    event IssuedAgreement(
+        uint256 indexed id,
+        address indexed issuer,
+        address indexed with,
+        address token,
+        uint256 amount,
+        uint256 paysAt
+    );
+    event Deposit(
+        address indexed issuer,
+        address token,
+        uint256 amount
+    );
     event Claimed(address to);
 
     // modifier
+    modifier nonExistAgreement(uint256 _id) {
+        require(_id > _agreemtnIds.current(), "INVALID: EXIST ID");
+        _;
+    }
 
     // public
 
@@ -71,22 +88,66 @@ contract Shiharai {
         uint256 _term,
         uint256 _paysAt
     ) public {
-        // Maybe we should limit to one contract at the same time.
+        _agreemtnIds.increment();
+        uint256 _newAgId = _agreemtnIds.current();
+        _issueAgreement(_newAgId, _name, _with, _token, _amount, _term, _paysAt);
+    }
+    function _issueAgreement(
+        uint256 _id,
+        bytes32 _name,
+        address _with,
+        address _token,
+        uint256 _amount,
+        uint256 _term,
+        uint256 _paysAt
+    ) private {
+        require(
+            depositedAmountMap[msg.sender][_token] >= _amount,
+            "INSUFFICIENT AMOUNT"
+        );
+        require(
+            noneReservedAmount[msg.sender][_token] >= _amount,
+            "INSUFFICIENT DEPOSIT"
+        );
+        // also reuqire
+        // amount(all agreed contract) + amount >= _amount
+        uint256 _now = block.timestamp;
+        Agreement memory ag = Agreement({
+            issuer: msg.sender,
+            undertaker: _with,
+            name: _name,
+            payment: _token,
+            id: _id,
+            amount: _amount,
+            term: _term, // 1 month
+            issuedAt: _now,
+            confirmedAt: 0,
+            continuesAt: 0,
+            paysAt: _paysAt
+        });
+        noneReservedAmount[msg.sender][_token] -= _amount;
+        issuerAgreementsIds[msg.sender].push(_id);
+        agreements[_id] = ag;
+        emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
     }
 
-    function deposit(address _token, uint256 _amount) public {}
-
-    function getAgreements(address protocol) public {
-    }
-
-    function withdrawalAgreement(address _with) public {}
-
-    function continueAgreements(uint256[] memory _ids) public {}
-
-    function continueAgreement(uint256 _id) public {}
-
-    function confirmAgreement(uint256 _id) public {
-        // emit Agreed(with, amount, term, timestamp);
+    function deposit(
+        address _token,
+        uint256 _amount
+    ) public {
+        require(
+            IERC20(_token).balanceOf(msg.sender) >= _amount,
+            "INSUFFICIENT AMOUNT"
+        );
+        bool success = IERC20(_token).transferFrom(
+            msg.sender,
+            address(this),
+            _amount
+        );
+        require(success, "TX FAILED");
+        depositedAmountMap[msg.sender][_token] += _amount;
+        noneReservedAmount[msg.sender][_token] += _amount;
+        emit Deposit(msg.sender, _token, _amount);
     }
 
     function depositAndissueAgreement(
@@ -96,7 +157,61 @@ contract Shiharai {
         uint256 _amount,
         uint256 _term,
         uint256 _paysAt
-    ) public {}
+    ) public {
+        deposit(_token, _amount);
+        issueAgreement(
+            _name,
+            _with,
+            _token,
+            _amount,
+            _term,
+            _paysAt
+        );
+    }
+
+    function getIssuersAgreements(address protocol)
+        public
+        view
+        returns (Agreement[] memory)
+    {
+        uint256 size = issuerAgreementsIds[protocol].length;
+        uint256 _id;
+        Agreement[] memory ags = new Agreement[](size);
+        for (uint256 i = 0; i < size; i++) {
+            _id = issuerAgreementsIds[protocol][i];
+            ags[i] = agreements[_id];
+        }
+        return ags;
+    }
+
+    function getUnderTakersAgreements(address _taker)
+        public
+        view
+        returns (Agreement[] memory)
+    {
+        uint256 size = undertakenAgreementIds[_taker].length;
+        uint256 _id;
+        Agreement[] memory ags = new Agreement[](size);
+        for (uint256 i = 0; i < size; i++) {
+            _id = undertakenAgreementIds[_taker][i];
+            ags[i] = agreements[_id];
+        }
+        return ags;
+    }
+
+    function withdrawalAgreement(address _with) public {}
+
+    function continueAgreements(uint256[] memory _ids) public {}
+
+    function continueAgreement(uint256 _id) public {}
+
+    function confirmAgreement(uint256 _id) public {
+        require(
+            agreements[_id].undertaker == msg.sender,
+            "INVALID: NOT THE UNDERTAKER"
+        );
+        agreements[_id].confirmedAt = block.timestamp;
+    }
 
     function claim() public {
         // exchange with ctoken
@@ -123,5 +238,4 @@ contract Shiharai {
         // approve of lending protocol with all tokens
         // only owner
     }
-
 }

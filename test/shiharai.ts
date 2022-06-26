@@ -13,7 +13,7 @@ describe('Shiharai', function () {
   beforeEach(async () => {
     ;[owner, alice, bob] = await ethers.getSigners()
     const MockERC20 = await ethers.getContractFactory('MockERC20')
-    erc20 = await MockERC20.deploy()
+    erc20 = await MockERC20.deploy('usdc')
     await erc20.deployed()
 
     const ShirahaiContract = await ethers.getContractFactory('Shiharai')
