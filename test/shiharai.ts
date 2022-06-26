@@ -22,14 +22,5 @@ describe('Shiharai', function () {
   })
 
   describe('setSupportedToken', () => {
-    it('setSupportedToken successfully', async () => {
-      await shirahaiContract.setSupportedToken(ethers.constants.AddressZero)
-      expect(await shirahaiContract.supportedTokensMap(erc20.address)).to.be.eq(
-        erc20.address
-      )
-      expect(
-        await shirahaiContract.supportedTokensMap(ethers.constants.AddressZero)
-      ).to.be.eq(ethers.constants.AddressZero)
-    })
   })
 })

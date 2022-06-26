@@ -4,13 +4,18 @@ import { expect } from 'chai'
 import { Contract, utils, BigNumber } from 'ethers'
 import { ethers } from 'hardhat'
 import {
+  IERC20__factory,
   MockERC20__factory,
-  Shiharai__factory,
+  Shiharai__factory
 } from '../typechain'
+
+const increaseTime = async (seconds: number) => {
+  await ethers.provider.send('evm_increaseTime', [seconds])
+  await ethers.provider.send('evm_mine', [])
+}
 
 describe('Shiharai', function () {
   let shirahaiContract: Contract,
-    shirahaiContractMock: Contract,
     owner: SignerWithAddress,
     alice: SignerWithAddress,
     bob: SignerWithAddress,
@@ -83,6 +88,13 @@ describe('Shiharai', function () {
       expect(
         await shirahaiContract.depositedAmountMap(owner.address, erc20.address)
       ).to.eq(amount)
+      expect(
+        await shirahaiContract.depositedAmountMap(owner.address, erc20.address)
+      ).to.eq(amount)
+
+      const ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
+      const Ctoken = IERC20__factory.connect(ctoken, owner)
+      expect(await Ctoken.balanceOf(shirahaiContract.address)).to.eq(amount)
     })
 
     it('deposit successfully with alice', async () => {
@@ -99,6 +111,10 @@ describe('Shiharai', function () {
       expect(
         await shirahaiContract.depositedAmountMap(alice.address, erc20.address)
       ).to.eq(amount)
+
+      const ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
+      const Ctoken = IERC20__factory.connect(ctoken, owner)
+      expect(await Ctoken.balanceOf(shirahaiContract.address)).to.eq(amount)
     })
 
     it('revert deposit', async () => {
@@ -157,9 +173,12 @@ describe('Shiharai', function () {
       expect(agreement.undertaker).to.be.eq(alice.address)
       expect(agreement.payment).to.be.eq(erc20.address)
       expect(agreement.amount).to.be.eq(amount)
+
+      const ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
+      const Ctoken = IERC20__factory.connect(ctoken, owner)
+      expect(await Ctoken.balanceOf(shirahaiContract.address)).to.eq(amount)
     })
   })
-
 
   describe('getAgreements', () => {
     let now: Date, nextMonth: number, amount: BigNumber, balance: BigNumber
@@ -215,6 +234,54 @@ describe('Shiharai', function () {
       expect(agreements[1].undertaker).to.be.eq(bob.address)
       expect(agreements[1].payment).to.be.eq(erc20.address)
       expect(agreements[1].amount).to.be.eq(amount)
+    })
+  })
+
+  describe('claim', () => {
+    let issueAgreement: any, nextMonth: number
+
+    this.beforeEach(async () => {
+      const now = new Date()
+      nextMonth =
+        new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          now.getDay()
+        ).getTime() / 1000
+
+      issueAgreement = {
+        name: utils.keccak256(utils.toUtf8Bytes('hoge')),
+        with: alice.address,
+        token: erc20.address,
+        amount: utils.parseUnits('10000', 18),
+        term: 1, // 1month
+        paysAt: nextMonth
+      }
+    })
+
+    it('claim successfully', async () => {
+      const amount = utils.parseUnits('10000', 18)
+      await erc20.approve(shirahaiContract.address, amount)
+      await shirahaiContract.deposit(erc20.address, amount)
+
+      await expect(
+        shirahaiContract.issueAgreement(...Object.values(issueAgreement))
+      ).to.emit(shirahaiContract, 'IssuedAgreement')
+
+      const agreement = await shirahaiContract.agreements(1)
+      const ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
+      const Ctoken = IERC20__factory.connect(ctoken, owner)
+      const days = 60 * 60 * 24
+      console.log(ctoken)
+      await shirahaiContract.connect(alice).confirmAgreement(1)
+      increaseTime(days * 31)
+      console.log('times')
+      await Ctoken.connect(alice).approve(shirahaiContract.address, amount)
+      console.log('approved')
+      await expect(shirahaiContract.connect(alice).claim(1)).to.emit(
+        shirahaiContract,
+        'Claimed'
+      )
     })
   })
 })
