@@ -67,6 +67,14 @@ contract Shiharai {
         _;
     }
 
+    modifier onlyIssure(uint256 _agreementId) {
+        require(
+            agreements[_agreementId].issuer == msg.sender,
+            "INVLAID: ONLY ISSURE"
+        );
+        _;
+    }
+
     // public
 
     function setSupportedToken(address _address) public {
@@ -215,7 +223,10 @@ contract Shiharai {
             cToken.balanceOf(msg.sender) >= agreements[_id].amount,
             "cToken is insufficient"
         );
-        require(block.timestamp >= agreements[_id].paysAt, "INVALID: BEFORE PAY DAY");
+        require(
+            block.timestamp >= agreements[_id].paysAt,
+            "INVALID: BEFORE PAY DAY"
+        );
         bool cSuccess = cToken.transferFrom(
             msg.sender,
             address(this),
@@ -223,19 +234,25 @@ contract Shiharai {
         );
         require(cSuccess, "cToken TRANSFER FAILED");
         cToken.burn(agreements[_id].amount);
+
+        depositedAmountMap[agreements[_id].issuer][
+            agreements[_id].payment
+        ] -= agreements[_id].amount;
         bool oSuccess = IERC20(agreements[_id].payment).transfer(
             msg.sender,
             agreements[_id].amount
         );
         require(oSuccess, "oToken TRANSFER FAILED");
-        depositedAmountMap[agreements[_id].issuer][
-            agreements[_id].payment
-        ] -= agreements[_id].amount;
         emit Claimed(
             msg.sender,
             agreements[_id].payment,
             agreements[_id].amount
         );
+    }
+
+    function modifyPayDay(uint256 _id, uint256 payDay) public onlyIssure(_id) {
+        require(payDay <= agreements[_id].paysAt, "INVALID: SET EALIER DATE");
+        agreements[_id].paysAt = payDay;
     }
 
     function claimForLendingProctol() public {
