@@ -6,7 +6,6 @@ import "hardhat/console.sol";
 
 interface ICtoken is IERC20 {
     function mint(uint256 amount) external;
-
     function burn(uint256 amount) external;
 }
 

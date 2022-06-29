@@ -14,6 +14,11 @@ const increaseTime = async (seconds: number) => {
   await ethers.provider.send('evm_mine', [])
 }
 
+const jumptoNextTime = async (unixTime: number) => {
+  await ethers.provider.send('evm_setNextBlockTimestamp', [unixTime])
+  await ethers.provider.send('evm_mine', [])
+}
+
 describe('Shiharai', function () {
   let shirahaiContract: Contract,
     owner: SignerWithAddress,
@@ -261,27 +266,37 @@ describe('Shiharai', function () {
 
     it('claim successfully', async () => {
       const amount = utils.parseUnits('10000', 18)
-      await erc20.approve(shirahaiContract.address, amount)
+      await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
       await shirahaiContract.deposit(erc20.address, amount)
 
       await expect(
         shirahaiContract.issueAgreement(...Object.values(issueAgreement))
       ).to.emit(shirahaiContract, 'IssuedAgreement')
 
-      const agreement = await shirahaiContract.agreements(1)
+      expect(
+        await shirahaiContract.depositedAmountMap(owner.address, erc20.address)
+      ).to.eq(amount)
       const ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
       const Ctoken = IERC20__factory.connect(ctoken, owner)
       const days = 60 * 60 * 24
-      console.log(ctoken)
+
       await shirahaiContract.connect(alice).confirmAgreement(1)
       increaseTime(days * 31)
-      console.log('times')
-      await Ctoken.connect(alice).approve(shirahaiContract.address, amount)
-      console.log('approved')
+      expect(await Ctoken.balanceOf(alice.address)).to.be.eq(amount)
+
+      await Ctoken.connect(alice).approve(
+        shirahaiContract.address,
+        ethers.constants.MaxUint256
+      )
+
       await expect(shirahaiContract.connect(alice).claim(1)).to.emit(
         shirahaiContract,
         'Claimed'
       )
+
+      expect(
+        await shirahaiContract.depositedAmountMap(owner.address, erc20.address)
+      ).to.eq(0)
     })
   })
 })

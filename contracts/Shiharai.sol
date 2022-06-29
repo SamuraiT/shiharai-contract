@@ -215,16 +215,16 @@ contract Shiharai {
             cToken.balanceOf(msg.sender) >= agreements[_id].amount,
             "cToken is insufficient"
         );
-        require(agreements[_id].paysAt >= block.timestamp, "BEFORE PAYS AT");
+        require(block.timestamp >= agreements[_id].paysAt, "INVALID: BEFORE PAY DAY");
         bool cSuccess = cToken.transferFrom(
             msg.sender,
             address(this),
             agreements[_id].amount
         );
         require(cSuccess, "cToken TRANSFER FAILED");
-        bool oSuccess = IERC20(agreements[_id].payment).transferFrom(
+        cToken.burn(agreements[_id].amount);
+        bool oSuccess = IERC20(agreements[_id].payment).transfer(
             msg.sender,
-            address(this),
             agreements[_id].amount
         );
         require(oSuccess, "oToken TRANSFER FAILED");
