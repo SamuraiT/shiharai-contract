@@ -196,11 +196,29 @@ contract Shiharai {
         return ags;
     }
 
-    function withdrawalAgreement(address _with) public {}
+    function withdrawalAgreement(address _with) public {
+    }
 
-    function continueAgreements(uint256[] memory _ids) public {}
+    function continueAgreements(uint256[] memory _ids) public {
+        for (uint256 i = 0; i < _ids.length; i++) {
+            continueAgreement(_ids[i]);
+        }
+    }
 
-    function continueAgreement(uint256 _id) public {}
+    function continueAgreement(uint256 _id) public onlyIssure(_id) {
+        require(
+            depositedAmountMap[msg.sender][agreements[_id].payment] >= agreements[_id].amount,
+            "INSUFFICIENT AMOUNT"
+        );
+        require(
+            noneReservedAmount[msg.sender][agreements[_id].payment] >= agreements[_id].amount,
+            "INSUFFICIENT DEPOSIT"
+        );
+        noneReservedAmount[msg.sender][agreements[_id].payment] -= agreements[_id].amount;
+        agreements[_id].continuesAt = block.timestamp;
+        uint256 month = 60 * 60 * 24 * 30; // it should be same days not after 30days
+        agreements[_id].paysAt += month;
+    }
 
     function confirmAgreement(uint256 _id) public {
         require(
