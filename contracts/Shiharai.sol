@@ -39,7 +39,11 @@ contract Shiharai {
     }
 
     mapping(address => mapping(address => uint256)) public depositedAmountMap;
-    mapping(address => mapping(address => uint256)) public noneReservedAmount;
+    // reserveed amount is the amount which will be used for payout.
+    // so after x amount of despoisit, reservedAmount will be increased by x.
+    // after agreement with y amount, reservedAmount will be decreased by y.
+    // this way we can confirm reserved amount for payout
+    mapping(address => mapping(address => uint256)) public reservedAmount;
     mapping(uint256 => TokenAmount) public redeemedAmountMap; // tokenX
     mapping(uint256 => VestingCondition) public vestingConditionMap;
     mapping(uint256 => Agreement) public agreements;
@@ -117,7 +121,7 @@ contract Shiharai {
             "INSUFFICIENT AMOUNT"
         );
         require(
-            noneReservedAmount[msg.sender][_token] >= _amount,
+            reservedAmount[msg.sender][_token] >= _amount,
             "INSUFFICIENT DEPOSIT"
         );
         // also reuqire
@@ -136,7 +140,7 @@ contract Shiharai {
             continuesAt: 0,
             paysAt: _paysAt
         });
-        noneReservedAmount[msg.sender][_token] -= _amount;
+        reservedAmount[msg.sender][_token] -= _amount;
         issuerAgreementsIds[msg.sender].push(_id);
         agreements[_id] = ag;
         emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
@@ -148,7 +152,7 @@ contract Shiharai {
         bool success = oToken.transferFrom(msg.sender, address(this), _amount);
         require(success, "TX FAILED");
         depositedAmountMap[msg.sender][_token] += _amount;
-        noneReservedAmount[msg.sender][_token] += _amount;
+        reservedAmount[msg.sender][_token] += _amount;
         ICtoken cToken = ICtoken(createOrGetCToken(_token));
         cToken.mint(_amount);
         emit Deposit(msg.sender, _token, _amount);
@@ -211,10 +215,10 @@ contract Shiharai {
             "INSUFFICIENT AMOUNT"
         );
         require(
-            noneReservedAmount[msg.sender][agreements[_id].payment] >= agreements[_id].amount,
+            reservedAmount[msg.sender][agreements[_id].payment] >= agreements[_id].amount,
             "INSUFFICIENT DEPOSIT"
         );
-        noneReservedAmount[msg.sender][agreements[_id].payment] -= agreements[_id].amount;
+        reservedAmount[msg.sender][agreements[_id].payment] -= agreements[_id].amount;
         agreements[_id].continuesAt = block.timestamp;
         uint256 month = 60 * 60 * 24 * 30; // it should be same days not after 30days
         agreements[_id].paysAt += month;
