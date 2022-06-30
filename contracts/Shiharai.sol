@@ -27,7 +27,6 @@ contract Shiharai {
         address issuer;
         address undertaker;
         bytes32 name;
-        // Supports stable token for payment as well as governce tokens for vestiges
         address payment;
         uint256 id;
         uint256 amount;
@@ -36,6 +35,8 @@ contract Shiharai {
         uint256 confirmedAt;
         uint256 continuesAt;
         uint256 paysAt; // unixtime stamp for vesting it would be 0.
+        uint256 endedAt;
+        uint256 previousId;
     }
 
     mapping(address => mapping(address => uint256)) public depositedAmountMap;
@@ -58,6 +59,15 @@ contract Shiharai {
         uint256 indexed id,
         address indexed issuer,
         address indexed with,
+        address token,
+        uint256 amount,
+        uint256 paysAt
+    );
+    event ContinueAgreement(
+        uint256 indexed id,
+        address indexed issuer,
+        address indexed with,
+        uint256 previousId,
         address token,
         uint256 amount,
         uint256 paysAt
@@ -93,7 +103,7 @@ contract Shiharai {
         uint256 _amount,
         uint256 _term,
         uint256 _paysAt
-    ) public {
+    ) public returns(uint256 id) {
         _agreemtnIds.increment();
         uint256 _newAgId = _agreemtnIds.current();
         _issueAgreement(
@@ -105,6 +115,7 @@ contract Shiharai {
             _term,
             _paysAt
         );
+        return _newAgId;
     }
 
     function _issueAgreement(
@@ -138,7 +149,9 @@ contract Shiharai {
             issuedAt: _now,
             confirmedAt: 0,
             continuesAt: 0,
-            paysAt: _paysAt
+            paysAt: _paysAt,
+            endedAt: 0,
+            previousId: 0
         });
         reservedAmount[msg.sender][_token] -= _amount;
         issuerAgreementsIds[msg.sender].push(_id);
@@ -200,7 +213,9 @@ contract Shiharai {
         return ags;
     }
 
-    function withdrawalAgreement(address _with) public {
+    function withdrawalAgreement(uint256 _id) public onlyIssure(_id) {
+        agreements[_id].endedAt = block.timestamp;
+        // payBack some amount if necessary
     }
 
     function continueAgreements(uint256[] memory _ids) public {
@@ -218,10 +233,28 @@ contract Shiharai {
             reservedAmount[msg.sender][agreements[_id].payment] >= agreements[_id].amount,
             "INSUFFICIENT DEPOSIT"
         );
-        reservedAmount[msg.sender][agreements[_id].payment] -= agreements[_id].amount;
-        agreements[_id].continuesAt = block.timestamp;
         uint256 month = 60 * 60 * 24 * 30; // it should be same days not after 30days
-        agreements[_id].paysAt += month;
+        uint256 newId = issueAgreement(
+            agreements[_id].name,
+            agreements[_id].undertaker,
+            agreements[_id].payment,
+            agreements[_id].amount,
+            agreements[_id].term,
+            agreements[_id].paysAt + month
+        );
+        uint256 _now = block.timestamp;
+        agreements[_id].continuesAt = _now;
+        agreements[_id].endedAt = _now;
+        agreements[newId].previousId = _id;
+        emit ContinueAgreement(
+            newId,
+            msg.sender,
+            agreements[newId].undertaker,
+            _id,
+            agreements[newId].payment,
+            agreements[newId].amount,
+            agreements[newId].paysAt
+        );
     }
 
     function confirmAgreement(uint256 _id) public {
