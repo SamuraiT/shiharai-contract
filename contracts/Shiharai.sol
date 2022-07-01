@@ -1,9 +1,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "hardhat/console.sol";
+import "./Ctoken.sol";
 
 contract Shiharai {
     using Counters for Counters.Counter;
@@ -46,9 +46,7 @@ contract Shiharai {
     mapping(address => uint256[]) public issuerAgreementsIds;
     mapping(address => uint256[]) public undertakenAgreementIds;
 
-    constructor(address _erc20) {
-        setSupportedToken(_erc20);
-    }
+    constructor(address _erc20) {}
 
     // evnet
     event Agreed(address with, uint256 amount, uint256 term, uint256 timestamp);
@@ -60,12 +58,8 @@ contract Shiharai {
         uint256 amount,
         uint256 paysAt
     );
-    event Deposit(
-        address indexed issuer,
-        address token,
-        uint256 amount
-    );
-    event Claimed(address to);
+    event Deposit(address indexed issuer, address token, uint256 amount);
+    event Claimed(address indexed by, address indexed token, uint256 amount);
 
     // modifier
     modifier nonExistAgreement(uint256 _id) {
@@ -73,10 +67,18 @@ contract Shiharai {
         _;
     }
 
+    modifier onlyIssure(uint256 _agreementId) {
+        require(
+            agreements[_agreementId].issuer == msg.sender,
+            "INVLAID: ONLY ISSURE"
+        );
+        _;
+    }
+
     // public
 
     function setSupportedToken(address _address) public {
-        address tokenX = createCToken(_address);
+        address tokenX = createOrGetCToken(_address);
         supportedTokensMap[_address] = tokenX;
     }
 
@@ -90,8 +92,17 @@ contract Shiharai {
     ) public {
         _agreemtnIds.increment();
         uint256 _newAgId = _agreemtnIds.current();
-        _issueAgreement(_newAgId, _name, _with, _token, _amount, _term, _paysAt);
+        _issueAgreement(
+            _newAgId,
+            _name,
+            _with,
+            _token,
+            _amount,
+            _term,
+            _paysAt
+        );
     }
+
     function _issueAgreement(
         uint256 _id,
         bytes32 _name,
@@ -131,22 +142,15 @@ contract Shiharai {
         emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
     }
 
-    function deposit(
-        address _token,
-        uint256 _amount
-    ) public {
-        require(
-            IERC20(_token).balanceOf(msg.sender) >= _amount,
-            "INSUFFICIENT AMOUNT"
-        );
-        bool success = IERC20(_token).transferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
+    function deposit(address _token, uint256 _amount) public {
+        IERC20Metadata oToken = IERC20Metadata(_token);
+        require(oToken.balanceOf(msg.sender) >= _amount, "INSUFFICIENT AMOUNT");
+        bool success = oToken.transferFrom(msg.sender, address(this), _amount);
         require(success, "TX FAILED");
         depositedAmountMap[msg.sender][_token] += _amount;
         noneReservedAmount[msg.sender][_token] += _amount;
+        ICtoken cToken = ICtoken(createOrGetCToken(_token));
+        cToken.mint(_amount);
         emit Deposit(msg.sender, _token, _amount);
     }
 
@@ -159,14 +163,7 @@ contract Shiharai {
         uint256 _paysAt
     ) public {
         deposit(_token, _amount);
-        issueAgreement(
-            _name,
-            _with,
-            _token,
-            _amount,
-            _term,
-            _paysAt
-        );
+        issueAgreement(_name, _with, _token, _amount, _term, _paysAt);
     }
 
     function getIssuersAgreements(address protocol)
@@ -211,11 +208,51 @@ contract Shiharai {
             "INVALID: NOT THE UNDERTAKER"
         );
         agreements[_id].confirmedAt = block.timestamp;
+        ICtoken cToken = ICtoken(createOrGetCToken(agreements[_id].payment));
+        cToken.transfer(msg.sender, agreements[_id].amount);
     }
 
-    function claim() public {
+    function claim(uint256 _id) public {
+        require(
+            agreements[_id].undertaker == msg.sender,
+            "INVALID: NOT THE UNDERTAKER"
+        );
         // exchange with ctoken
-        // emit Claimed(tokenAddress);
+        ICtoken cToken = ICtoken(createOrGetCToken(agreements[_id].payment));
+        require(
+            cToken.balanceOf(msg.sender) >= agreements[_id].amount,
+            "cToken is insufficient"
+        );
+        require(
+            block.timestamp >= agreements[_id].paysAt,
+            "INVALID: BEFORE PAY DAY"
+        );
+        bool cSuccess = cToken.transferFrom(
+            msg.sender,
+            address(this),
+            agreements[_id].amount
+        );
+        require(cSuccess, "cToken TRANSFER FAILED");
+        cToken.burn(agreements[_id].amount);
+
+        depositedAmountMap[agreements[_id].issuer][
+            agreements[_id].payment
+        ] -= agreements[_id].amount;
+        bool oSuccess = IERC20(agreements[_id].payment).transfer(
+            msg.sender,
+            agreements[_id].amount
+        );
+        require(oSuccess, "oToken TRANSFER FAILED");
+        emit Claimed(
+            msg.sender,
+            agreements[_id].payment,
+            agreements[_id].amount
+        );
+    }
+
+    function modifyPayDay(uint256 _id, uint256 payDay) public onlyIssure(_id) {
+        require(payDay <= agreements[_id].paysAt, "INVALID: SET EALIER DATE");
+        agreements[_id].paysAt = payDay;
     }
 
     function claimForLendingProctol() public {
@@ -230,8 +267,13 @@ contract Shiharai {
     }
 
     // internal
-    function createCToken(address _token) internal returns (address) {
-        return _token; // need to create XToken
+    function createOrGetCToken(address _token) private returns (address) {
+        IERC20Metadata oToken = IERC20Metadata(_token);
+        if (supportedTokensMap[_token] == address(0x0)) {
+            Ctoken cToken = new Ctoken(oToken.name(), oToken.symbol(), _token);
+            supportedTokensMap[_token] = address(cToken);
+        }
+        return supportedTokensMap[_token];
     }
 
     function approveof(address _spender) public {
