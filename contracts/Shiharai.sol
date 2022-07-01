@@ -27,19 +27,24 @@ contract Shiharai {
         address issuer;
         address undertaker;
         bytes32 name;
-        // Supports stable token for payment as well as governce tokens for vestiges
         address payment;
         uint256 id;
         uint256 amount;
         uint256 term;
         uint256 issuedAt;
         uint256 confirmedAt;
-        uint256 continuesAt;
         uint256 paysAt; // unixtime stamp for vesting it would be 0.
+        uint256 endedAt;
+        uint256 nextAgreementId;
+        uint256 paidAt;
     }
 
     mapping(address => mapping(address => uint256)) public depositedAmountMap;
-    mapping(address => mapping(address => uint256)) public noneReservedAmount;
+    // reserveed amount is the amount which will be used for payout.
+    // so after x amount of despoisit, reservedAmount will be increased by x.
+    // after agreement with y amount, reservedAmount will be decreased by y.
+    // this way we can confirm reserved amount for payout
+    mapping(address => mapping(address => uint256)) public reservedAmount;
     mapping(uint256 => TokenAmount) public redeemedAmountMap; // tokenX
     mapping(uint256 => VestingCondition) public vestingConditionMap;
     mapping(uint256 => Agreement) public agreements;
@@ -49,11 +54,28 @@ contract Shiharai {
     constructor(address _erc20) {}
 
     // evnet
-    event Agreed(address with, uint256 amount, uint256 term, uint256 timestamp);
+    event ConfirmAgreement(
+        uint256 indexed id,
+        address indexed issure,
+        address indexed with,
+        address token,
+        uint256 amount,
+        uint256 paysAt,
+        uint256 confirmedAt
+    );
     event IssuedAgreement(
         uint256 indexed id,
         address indexed issuer,
         address indexed with,
+        address token,
+        uint256 amount,
+        uint256 paysAt
+    );
+    event ContinueAgreement(
+        uint256 indexed id,
+        address indexed issuer,
+        address indexed with,
+        uint256 previousId,
         address token,
         uint256 amount,
         uint256 paysAt
@@ -89,7 +111,7 @@ contract Shiharai {
         uint256 _amount,
         uint256 _term,
         uint256 _paysAt
-    ) public {
+    ) public returns (uint256 id) {
         _agreemtnIds.increment();
         uint256 _newAgId = _agreemtnIds.current();
         _issueAgreement(
@@ -101,6 +123,7 @@ contract Shiharai {
             _term,
             _paysAt
         );
+        return _newAgId;
     }
 
     function _issueAgreement(
@@ -117,7 +140,7 @@ contract Shiharai {
             "INSUFFICIENT AMOUNT"
         );
         require(
-            noneReservedAmount[msg.sender][_token] >= _amount,
+            reservedAmount[msg.sender][_token] >= _amount,
             "INSUFFICIENT DEPOSIT"
         );
         // also reuqire
@@ -133,10 +156,12 @@ contract Shiharai {
             term: _term, // 1 month
             issuedAt: _now,
             confirmedAt: 0,
-            continuesAt: 0,
-            paysAt: _paysAt
+            paysAt: _paysAt,
+            endedAt: 0,
+            nextAgreementId: 0,
+            paidAt: 0
         });
-        noneReservedAmount[msg.sender][_token] -= _amount;
+        reservedAmount[msg.sender][_token] -= _amount;
         issuerAgreementsIds[msg.sender].push(_id);
         agreements[_id] = ag;
         emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
@@ -148,7 +173,7 @@ contract Shiharai {
         bool success = oToken.transferFrom(msg.sender, address(this), _amount);
         require(success, "TX FAILED");
         depositedAmountMap[msg.sender][_token] += _amount;
-        noneReservedAmount[msg.sender][_token] += _amount;
+        reservedAmount[msg.sender][_token] += _amount;
         ICtoken cToken = ICtoken(createOrGetCToken(_token));
         cToken.mint(_amount);
         emit Deposit(msg.sender, _token, _amount);
@@ -196,13 +221,54 @@ contract Shiharai {
         return ags;
     }
 
-    function withdrawalAgreement(address _with) public {}
+    function withdrawalAgreement(uint256 _id) public onlyIssure(_id) {
+        require(agreements[_id].endedAt == 0, "INVALID: ALREADY TERMINATED");
+        agreements[_id].endedAt = block.timestamp;
+        // payBack some amount if necessary
+    }
 
-    function continueAgreements(uint256[] memory _ids) public {}
+    function continueAgreements(uint256[] memory _ids) public {
+        for (uint256 i = 0; i < _ids.length; i++) {
+            continueAgreement(_ids[i]);
+        }
+    }
 
-    function continueAgreement(uint256 _id) public {}
+    function continueAgreement(uint256 _id) public onlyIssure(_id) {
+        require(
+            depositedAmountMap[msg.sender][agreements[_id].payment] >=
+                agreements[_id].amount,
+            "INSUFFICIENT AMOUNT"
+        );
+        require(
+            reservedAmount[msg.sender][agreements[_id].payment] >=
+                agreements[_id].amount,
+            "INSUFFICIENT DEPOSIT"
+        );
+        uint256 month = 60 * 60 * 24 * 30; // it should be same days not after 30days
+        uint256 newId = issueAgreement(
+            agreements[_id].name,
+            agreements[_id].undertaker,
+            agreements[_id].payment,
+            agreements[_id].amount,
+            agreements[_id].term,
+            agreements[_id].paysAt + month
+        );
+        uint256 _now = block.timestamp;
+        agreements[_id].endedAt = _now;
+        agreements[_id].nextAgreementId = newId;
+        emit ContinueAgreement(
+            newId,
+            msg.sender,
+            agreements[newId].undertaker,
+            _id,
+            agreements[newId].payment,
+            agreements[newId].amount,
+            agreements[newId].paysAt
+        );
+    }
 
     function confirmAgreement(uint256 _id) public {
+        require(agreements[_id].confirmedAt == 0, "INVALID: ALREADY CONFIRMED");
         require(
             agreements[_id].undertaker == msg.sender,
             "INVALID: NOT THE UNDERTAKER"
@@ -210,6 +276,15 @@ contract Shiharai {
         agreements[_id].confirmedAt = block.timestamp;
         ICtoken cToken = ICtoken(createOrGetCToken(agreements[_id].payment));
         cToken.transfer(msg.sender, agreements[_id].amount);
+        emit ConfirmAgreement(
+            _id,
+            agreements[_id].issuer,
+            agreements[_id].undertaker,
+            agreements[_id].payment,
+            agreements[_id].amount,
+            agreements[_id].paysAt,
+            agreements[_id].confirmedAt
+        );
     }
 
     function claim(uint256 _id) public {
@@ -217,6 +292,7 @@ contract Shiharai {
             agreements[_id].undertaker == msg.sender,
             "INVALID: NOT THE UNDERTAKER"
         );
+        require(agreements[_id].paidAt == 0, "INVALID: ALRWADY CLAIMED");
         // exchange with ctoken
         ICtoken cToken = ICtoken(createOrGetCToken(agreements[_id].payment));
         require(
@@ -243,6 +319,7 @@ contract Shiharai {
             agreements[_id].amount
         );
         require(oSuccess, "oToken TRANSFER FAILED");
+        agreements[_id].paidAt = block.timestamp;
         emit Claimed(
             msg.sender,
             agreements[_id].payment,
