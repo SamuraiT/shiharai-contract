@@ -82,6 +82,58 @@ describe('Shiharai', function () {
     })
   })
 
+  describe('confirmAgreement', () => {
+    let issueAgreement: any,
+      nextMonth: number,
+      ctoken: string,
+      Ctoken: IERC20,
+      days: number
+
+    beforeEach(async () => {
+      const now = new Date()
+      nextMonth =
+        new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          now.getDay()
+        ).getTime() / 1000
+
+      issueAgreement = {
+        name: utils.keccak256(utils.toUtf8Bytes('hoge')),
+        with: alice.address,
+        token: erc20.address,
+        amount: utils.parseUnits('10000', 18),
+        term: 1, // 1month
+        paysAt: nextMonth
+      }
+
+      await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
+      await shirahaiContract.deposit(erc20.address, issueAgreement.amount)
+      await shirahaiContract.issueAgreement(...Object.values(issueAgreement))
+      ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
+      Ctoken = IERC20__factory.connect(ctoken, owner)
+      days = 60 * 60 * 24
+
+    })
+
+    it('successfully continue agreeemnt', async () => {
+      await expect(shirahaiContract.connect(alice).confirmAgreement(1)).to.emit(
+        shirahaiContract,
+        'ConfirmAgreement'
+      )
+    })
+
+    it('revert to if user try confirm twice', async () => {
+      await expect(shirahaiContract.connect(alice).confirmAgreement(1)).to.emit(
+        shirahaiContract,
+        'ConfirmAgreement'
+      )
+
+      await expect(
+        shirahaiContract.connect(alice).confirmAgreement(1)
+      ).to.be.revertedWith('INVALID: ALREADY CONFIRMED')
+    })
+  })
   describe('deposit', () => {
     it('deposit successfully', async () => {
       const balance = await erc20.balanceOf(owner.address)
@@ -300,6 +352,45 @@ describe('Shiharai', function () {
         await shirahaiContract.depositedAmountMap(owner.address, erc20.address)
       ).to.eq(0)
     })
+
+    it('revert if undertaker try to claim twice', async () => {
+      const amount = utils.parseUnits('10000', 18)
+      await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
+      await shirahaiContract.deposit(erc20.address, amount)
+
+      await expect(
+        shirahaiContract.issueAgreement(...Object.values(issueAgreement))
+      ).to.emit(shirahaiContract, 'IssuedAgreement')
+
+      expect(
+        await shirahaiContract.depositedAmountMap(owner.address, erc20.address)
+      ).to.eq(amount)
+      const ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
+      const Ctoken = IERC20__factory.connect(ctoken, owner)
+      const days = 60 * 60 * 24
+
+      await shirahaiContract.connect(alice).confirmAgreement(1)
+      expect(await Ctoken.balanceOf(alice.address)).to.be.eq(amount)
+
+      await Ctoken.connect(alice).approve(
+        shirahaiContract.address,
+        ethers.constants.MaxUint256
+      )
+
+      await increaseTime(days * 40)
+      await expect(shirahaiContract.connect(alice).claim(1)).to.emit(
+        shirahaiContract,
+        'Claimed'
+      )
+
+      expect(
+        await shirahaiContract.depositedAmountMap(owner.address, erc20.address)
+      ).to.eq(0)
+
+      await expect(shirahaiContract.connect(alice).claim(1)).to.be.revertedWith(
+        'INVALID: ALRWADY CLAIMED'
+      )
+    })
   })
 
   describe('continueAgreement', () => {
@@ -347,12 +438,12 @@ describe('Shiharai', function () {
       const firstAgreement = await shirahaiContract.agreements(1)
       expect(firstAgreement.paysAt).to.be.eq(firstAgreement.paysAt)
       expect(firstAgreement.endedAt.toNumber()).to.be.gte(current)
-      expect(firstAgreement.continuesAt.toNumber()).to.be.gte(current)
+      expect(firstAgreement.nextAgreementId).to.be.eq(2)
+
       const nextAgreement = await shirahaiContract.agreements(2)
       expect(nextAgreement.paysAt.toNumber()).to.be.gte(current)
-
       expect(nextAgreement.endedAt.toNumber()).to.be.eq(0)
-      expect(nextAgreement.previousId).to.be.eq(1)
+      expect(nextAgreement.nextAgreementId).to.be.eq(0)
       expect(nextAgreement.issuer).to.be.eq(firstAgreement.issuer)
       expect(nextAgreement.undertaker).to.be.eq(firstAgreement.undertaker)
       expect(nextAgreement.amount).to.be.eq(firstAgreement.amount)
@@ -360,7 +451,37 @@ describe('Shiharai', function () {
     })
 
     it('revert if depoisit is not enough', async () => {
-      await expect(shirahaiContract.continueAgreement(1)).to.be.revertedWith('INSUFFICIENT DEPOSIT')
+      await expect(shirahaiContract.continueAgreement(1)).to.be.revertedWith(
+        'INSUFFICIENT DEPOSIT'
+      )
+    })
+    it('success with continueagreements', async () => {
+      const nextIssueAgreement = {
+        name: utils.keccak256(utils.toUtf8Bytes('hoge')),
+        with: bob.address,
+        token: erc20.address,
+        amount: utils.parseUnits('10000', 18),
+        term: 1, // 1month
+        paysAt: nextMonth
+      }
+
+      await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
+      await shirahaiContract.deposit(erc20.address, nextIssueAgreement.amount)
+      await shirahaiContract.issueAgreement(
+        ...Object.values(nextIssueAgreement)
+      )
+
+      await shirahaiContract.connect(bob).confirmAgreement(2)
+
+      await shirahaiContract.deposit(
+        erc20.address,
+        issueAgreement.amount.mul(2)
+      )
+      await expect(shirahaiContract.continueAgreements([1, 2])).to.emit(
+        shirahaiContract,
+        'ContinueAgreement'
+      )
+
     })
   })
 })

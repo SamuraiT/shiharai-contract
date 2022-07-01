@@ -33,10 +33,10 @@ contract Shiharai {
         uint256 term;
         uint256 issuedAt;
         uint256 confirmedAt;
-        uint256 continuesAt;
         uint256 paysAt; // unixtime stamp for vesting it would be 0.
         uint256 endedAt;
-        uint256 previousId;
+        uint256 nextAgreementId;
+        uint256 paidAt;
     }
 
     mapping(address => mapping(address => uint256)) public depositedAmountMap;
@@ -54,7 +54,15 @@ contract Shiharai {
     constructor(address _erc20) {}
 
     // evnet
-    event Agreed(address with, uint256 amount, uint256 term, uint256 timestamp);
+    event ConfirmAgreement(
+        uint256 indexed id,
+        address indexed issure,
+        address indexed with,
+        address token,
+        uint256 amount,
+        uint256 paysAt,
+        uint256 confirmedAt
+    );
     event IssuedAgreement(
         uint256 indexed id,
         address indexed issuer,
@@ -103,7 +111,7 @@ contract Shiharai {
         uint256 _amount,
         uint256 _term,
         uint256 _paysAt
-    ) public returns(uint256 id) {
+    ) public returns (uint256 id) {
         _agreemtnIds.increment();
         uint256 _newAgId = _agreemtnIds.current();
         _issueAgreement(
@@ -148,10 +156,10 @@ contract Shiharai {
             term: _term, // 1 month
             issuedAt: _now,
             confirmedAt: 0,
-            continuesAt: 0,
             paysAt: _paysAt,
             endedAt: 0,
-            previousId: 0
+            nextAgreementId: 0,
+            paidAt: 0
         });
         reservedAmount[msg.sender][_token] -= _amount;
         issuerAgreementsIds[msg.sender].push(_id);
@@ -214,6 +222,7 @@ contract Shiharai {
     }
 
     function withdrawalAgreement(uint256 _id) public onlyIssure(_id) {
+        require(agreements[_id].endedAt == 0, "INVALID: ALREADY TERMINATED");
         agreements[_id].endedAt = block.timestamp;
         // payBack some amount if necessary
     }
@@ -226,11 +235,13 @@ contract Shiharai {
 
     function continueAgreement(uint256 _id) public onlyIssure(_id) {
         require(
-            depositedAmountMap[msg.sender][agreements[_id].payment] >= agreements[_id].amount,
+            depositedAmountMap[msg.sender][agreements[_id].payment] >=
+                agreements[_id].amount,
             "INSUFFICIENT AMOUNT"
         );
         require(
-            reservedAmount[msg.sender][agreements[_id].payment] >= agreements[_id].amount,
+            reservedAmount[msg.sender][agreements[_id].payment] >=
+                agreements[_id].amount,
             "INSUFFICIENT DEPOSIT"
         );
         uint256 month = 60 * 60 * 24 * 30; // it should be same days not after 30days
@@ -243,9 +254,8 @@ contract Shiharai {
             agreements[_id].paysAt + month
         );
         uint256 _now = block.timestamp;
-        agreements[_id].continuesAt = _now;
         agreements[_id].endedAt = _now;
-        agreements[newId].previousId = _id;
+        agreements[_id].nextAgreementId = newId;
         emit ContinueAgreement(
             newId,
             msg.sender,
@@ -258,6 +268,7 @@ contract Shiharai {
     }
 
     function confirmAgreement(uint256 _id) public {
+        require(agreements[_id].confirmedAt == 0, "INVALID: ALREADY CONFIRMED");
         require(
             agreements[_id].undertaker == msg.sender,
             "INVALID: NOT THE UNDERTAKER"
@@ -265,6 +276,15 @@ contract Shiharai {
         agreements[_id].confirmedAt = block.timestamp;
         ICtoken cToken = ICtoken(createOrGetCToken(agreements[_id].payment));
         cToken.transfer(msg.sender, agreements[_id].amount);
+        emit ConfirmAgreement(
+            _id,
+            agreements[_id].issuer,
+            agreements[_id].undertaker,
+            agreements[_id].payment,
+            agreements[_id].amount,
+            agreements[_id].paysAt,
+            agreements[_id].confirmedAt
+        );
     }
 
     function claim(uint256 _id) public {
@@ -272,6 +292,7 @@ contract Shiharai {
             agreements[_id].undertaker == msg.sender,
             "INVALID: NOT THE UNDERTAKER"
         );
+        require(agreements[_id].paidAt == 0, "INVALID: ALRWADY CLAIMED");
         // exchange with ctoken
         ICtoken cToken = ICtoken(createOrGetCToken(agreements[_id].payment));
         require(
@@ -298,6 +319,7 @@ contract Shiharai {
             agreements[_id].amount
         );
         require(oSuccess, "oToken TRANSFER FAILED");
+        agreements[_id].paidAt = block.timestamp;
         emit Claimed(
             msg.sender,
             agreements[_id].payment,
