@@ -463,4 +463,66 @@ describe('Shiharai', function () {
       )
     })
   })
+
+  describe('depositAndissueVestingAgreement', () => {
+    let issueVestingAgreement: any,
+      nextMonth: number
+
+    beforeEach(async () => {
+      const now = new Date()
+      nextMonth =
+        new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          now.getDay()
+        ).getTime() / 1000
+
+      issueVestingAgreement = {
+        name: utils.keccak256(utils.toUtf8Bytes('hoge')),
+        with: alice.address,
+        token: erc20.address,
+        amount: utils.parseUnits('10000', 18),
+        term: 1, // 1month
+        paysAt: nextMonth,
+        cliffEndedAt: nextMonth,
+        vestingDuration: 365, // 30 days
+        revokeDays: 30
+      }
+
+    })
+
+    it('successfully continue agreeemnt', async () => {
+      const balance = await erc20.balanceOf(owner.address)
+      await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
+      await expect(
+        shirahaiContract.depositAndissueVestingAgreement(
+          ...Object.values(issueVestingAgreement)
+        )
+      )
+        .to.emit(shirahaiContract, 'IssuedAgreement')
+        .to.emit(shirahaiContract, 'Deposit')
+        .withArgs(owner.address, erc20.address, issueVestingAgreement.amount)
+
+      expect(await erc20.balanceOf(owner.address)).to.eq(
+        balance.sub(issueVestingAgreement.amount)
+      )
+      expect(await erc20.balanceOf(shirahaiContract.address)).to.eq(
+        issueVestingAgreement.amount
+      )
+      expect(
+        await shirahaiContract.depositedAmountMap(owner.address, erc20.address)
+      ).to.eq(issueVestingAgreement.amount)
+      const agreement = await shirahaiContract.agreements(1)
+      expect(agreement.issuer).to.be.eq(owner.address)
+      expect(agreement.undertaker).to.be.eq(alice.address)
+      expect(agreement.payment).to.be.eq(erc20.address)
+      expect(agreement.amount).to.be.eq(issueVestingAgreement.amount)
+
+      const ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
+      const Ctoken = IERC20__factory.connect(ctoken, owner)
+      expect(await Ctoken.balanceOf(shirahaiContract.address)).to.eq(
+        issueVestingAgreement.amount
+      )
+    })
+  })
 })

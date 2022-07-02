@@ -446,6 +446,8 @@ contract Shiharai {
     function modifyPayDay(uint256 _id, uint256 payDay) public onlyIssure(_id) {
         require(payDay <= agreements[_id].paysAt, "INVALID: SET EALIER DATE");
         agreements[_id].paysAt = payDay;
+        uint256 vid = vestingOfAgreement[_id];
+        vestings[vid].cliffEndedAt = payDay;
     }
 
     function claimForLendingProctol() public {
