@@ -44,6 +44,11 @@ const config: HardhatUserConfig = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
     },
+    munbai: {
+      url: process.env.MUNBAI_API || '',
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
+    },
     mainnet: {
       chainId: 137,
       url: process.env.PROD_ALCHEMY_KEY || '',
