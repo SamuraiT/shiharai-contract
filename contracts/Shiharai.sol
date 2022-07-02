@@ -207,6 +207,7 @@ contract Shiharai {
         });
         reservedAmount[msg.sender][_token] -= _amount;
         issuerAgreementsIds[msg.sender].push(_id);
+        undertakenAgreementIds[_with].push(_id);
         agreements[_id] = ag;
         emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
     }
