@@ -356,31 +356,45 @@ contract Shiharai {
         );
         ICtoken cToken = ICtoken(createOrGetCToken(agreements[_id].payment));
         require(
-            cToken.balanceOf(msg.sender) >= (agreements[_id].amount - vestings[vid].paidAmount),
+            cToken.balanceOf(msg.sender) >=
+                (agreements[_id].amount - vestings[vid].paidAmount),
             "cToken is insufficient"
         );
+        uint256 _now = block.timestamp;
         // amount to be paid for a day
-        // if vestings[vid].vestingDuration == 1 and vestings[vid].cliffEndedAt is paysat
+        // if vestings[vid].vestingDuration == 0 and vestings[vid].cliffEndedAt is paysat
         // then amountPerDay
         // amount(t) = alpha * t = payout/duration * t
         // [if t >= duration then t <= duration, otherwise t]
         // amount to paid will be
         // amount(t) - paidAmount
-        uint256 alpha = agreements[_id].amount / vestings[vid].vestingDuration;
-        uint256 passedDays = (block.timestamp - vestings[vid].cliffEndedAt) / 1 days;
+        uint256 passedDays = (_now - vestings[vid].cliffEndedAt) / 1 days;
         if (passedDays >= vestings[vid].vestingDuration) {
             passedDays = vestings[vid].vestingDuration;
         }
-        uint256 amount =  alpha * passedDays - vestings[vid].paidAmount;
-        require(
-             (passedDays - vestings[vid].paidAt) >= vestings[vid].revokeDays,
-            "INVALID: WAIT UNTILS REVOKE DAYS"
-        );
-        bool cSuccess = cToken.transferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+        uint256 amount;
+        if (vestings[vid].vestingDuration == 0) {
+            // if duration is 0 means, it's not vested.
+            // and amount(t) = 0 * t + amount = amount
+            amount = agreements[_id].amount;
+        } else {
+            uint256 alpha = agreements[_id].amount /
+                vestings[vid].vestingDuration;
+            amount = alpha * passedDays - vestings[vid].paidAmount;
+        }
+        // passedDays is t. where amount(t) = alpha * t.
+        bool isExceedingRevokeDays;
+        if (vestings[vid].paidAt == 0) {
+            isExceedingRevokeDays =
+                ((_now - vestings[vid].cliffEndedAt) / 1 days) >=
+                vestings[vid].revokeDays;
+        } else {
+            isExceedingRevokeDays =
+                ((_now - vestings[vid].paidAt) / 1 days) >=
+                vestings[vid].revokeDays;
+        }
+        require(isExceedingRevokeDays, "INVALID: WAIT UNTILS REVOKE DAYS");
+        bool cSuccess = cToken.transferFrom(msg.sender, address(this), amount);
         require(cSuccess, "cToken TRANSFER FAILED");
         cToken.burn(amount);
 
@@ -392,11 +406,7 @@ contract Shiharai {
             amount
         );
         require(oSuccess, "oToken TRANSFER FAILED");
-        emit Claimed(
-            msg.sender,
-            agreements[_id].payment,
-            amount
-        );
+        emit Claimed(msg.sender, agreements[_id].payment, amount);
     }
 
     function claim(uint256 _id) public {
