@@ -211,10 +211,12 @@ contract Shiharai {
         emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
     }
 
-    function getVestingInfo(uint256 _agreementId) public view returns(VestingCondition memory) {
-        return vestings[
-            vestingOfAgreement[_agreementId]
-        ];
+    function getVestingInfo(uint256 _agreementId)
+        public
+        view
+        returns (VestingCondition memory)
+    {
+        return vestings[vestingOfAgreement[_agreementId]];
     }
 
     function deposit(address _token, uint256 _amount) public {
@@ -378,7 +380,7 @@ contract Shiharai {
             passedDays = (_now - vestings[vid].cliffEndedAt) / 1 days;
             uint256 delta = vestings[vid].amount /
                 vestings[vid].vestingDuration;
-            return delta * ((_now - vestings[vid].cliffEndedAt) / 1 days);
+            return delta * passedDays;
         }
 
         if (vestings[vid].vestingDuration == 0 && vestings[vid].paidAt == 0) {

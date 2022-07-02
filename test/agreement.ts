@@ -7,6 +7,7 @@ import {
   IERC20__factory,
   MockERC20__factory,
   Shiharai__factory
+  // eslint-disable-next-line node/no-missing-import
 } from '../typechain'
 
 const increaseTime = async (seconds: number) => {
@@ -76,8 +77,7 @@ describe('Shiharai', function () {
   })
 
   describe('confirmAgreement', () => {
-    let issueAgreement: any,
-      nextMonth: number
+    let issueAgreement: any, nextMonth: number
 
     beforeEach(async () => {
       const now = new Date()
@@ -328,7 +328,7 @@ describe('Shiharai', function () {
         ethers.constants.MaxUint256
       )
 
-      await increaseTime(days * 40)
+      await increaseTime(days * 45)
       await expect(shirahaiContract.connect(alice).claim(1)).to.emit(
         shirahaiContract,
         'Claimed'
@@ -363,7 +363,7 @@ describe('Shiharai', function () {
         ethers.constants.MaxUint256
       )
 
-      await increaseTime(days * 40)
+      await increaseTime(days * 31)
       await expect(shirahaiContract.connect(alice).claim(1)).to.emit(
         shirahaiContract,
         'Claimed'
@@ -380,8 +380,7 @@ describe('Shiharai', function () {
   })
 
   describe('continueAgreement', () => {
-    let issueAgreement: any,
-      nextMonth: number
+    let issueAgreement: any, nextMonth: number
 
     beforeEach(async () => {
       const now = new Date()
@@ -465,8 +464,7 @@ describe('Shiharai', function () {
   })
 
   describe('depositAndissueVestingAgreement', () => {
-    let issueVestingAgreement: any,
-      nextMonth: number
+    let issueVestingAgreement: any, nextMonth: number
 
     beforeEach(async () => {
       const now = new Date()
@@ -488,10 +486,9 @@ describe('Shiharai', function () {
         vestingDuration: 365, // 30 days
         revokeDays: 30
       }
-
     })
 
-    it('successfully continue agreeemnt', async () => {
+    it('successfully deposit and issue agreement', async () => {
       const balance = await erc20.balanceOf(owner.address)
       await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
       await expect(
@@ -522,6 +519,68 @@ describe('Shiharai', function () {
       const Ctoken = IERC20__factory.connect(ctoken, owner)
       expect(await Ctoken.balanceOf(shirahaiContract.address)).to.eq(
         issueVestingAgreement.amount
+      )
+    })
+  })
+
+  describe('claimForVesting', () => {
+    let issueVestingAgreement: any, nextMonth: number
+    beforeEach(async () => {
+      const now = new Date()
+      nextMonth =
+        new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          now.getDay()
+        ).getTime() / 1000
+
+      issueVestingAgreement = {
+        name: utils.keccak256(utils.toUtf8Bytes('hoge')),
+        with: alice.address,
+        token: erc20.address,
+        amount: utils.parseUnits('10000', 18),
+        term: 1, // 1month
+        paysAt: nextMonth,
+        cliffEndedAt: nextMonth,
+        vestingDuration: 365, // 30 days
+        revokeDays: 0
+      }
+
+      await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
+      await shirahaiContract.depositAndissueVestingAgreement(
+        ...Object.values(issueVestingAgreement)
+      )
+      await shirahaiContract.connect(alice).confirmAgreement(1)
+    })
+
+    it('successfully claim', async () => {
+      const days = 60 * 60 * 24
+      await increaseTime(days * 40)
+      const amount = await shirahaiContract.amountToBePiad(1)
+      const delta = issueVestingAgreement.amount.div(
+        issueVestingAgreement.vestingDuration
+      )
+      const fromEstimatedAmount = delta.mul(
+        Math.ceil(
+          (nextMonth + 5 * days - issueVestingAgreement.cliffEndedAt) / days
+        )
+      )
+      expect(amount).to.be.closeTo(fromEstimatedAmount, utils.parseEther('1'))
+      const ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
+      const Ctoken = IERC20__factory.connect(ctoken, owner)
+      await Ctoken.connect(alice).approve(
+        shirahaiContract.address,
+        ethers.constants.MaxUint256
+      )
+
+      const amount2 = await shirahaiContract.amountToBePiad(1)
+      await expect(shirahaiContract.connect(alice).claim(1)).to.emit(
+        shirahaiContract,
+        'Claimed'
+      )
+      expect(await erc20.balanceOf(alice.address)).to.be.closeTo(
+        amount2,
+        utils.parseEther('1000')
       )
     })
   })
