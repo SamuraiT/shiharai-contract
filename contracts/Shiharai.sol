@@ -56,7 +56,9 @@ contract Shiharai {
     mapping(address => uint256[]) public issuerAgreementsIds;
     mapping(address => uint256[]) public undertakenAgreementIds;
 
-    constructor(address _erc20) {}
+    constructor(address erc20) {
+        setSupportedToken(erc20);
+    }
 
     // evnet
     event ConfirmAgreement(

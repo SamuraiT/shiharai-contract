@@ -4,8 +4,6 @@ import { expect } from 'chai'
 import { Contract, utils, BigNumber } from 'ethers'
 import { ethers } from 'hardhat'
 import {
-  ERC20__factory,
-  IERC20,
   IERC20__factory,
   MockERC20__factory,
   Shiharai__factory
@@ -13,11 +11,6 @@ import {
 
 const increaseTime = async (seconds: number) => {
   await ethers.provider.send('evm_increaseTime', [seconds])
-  await ethers.provider.send('evm_mine', [])
-}
-
-const jumptoNextTime = async (unixTime: number) => {
-  await ethers.provider.send('evm_setNextBlockTimestamp', [unixTime])
   await ethers.provider.send('evm_mine', [])
 }
 
@@ -84,10 +77,7 @@ describe('Shiharai', function () {
 
   describe('confirmAgreement', () => {
     let issueAgreement: any,
-      nextMonth: number,
-      ctoken: string,
-      Ctoken: IERC20,
-      days: number
+      nextMonth: number
 
     beforeEach(async () => {
       const now = new Date()
@@ -110,9 +100,6 @@ describe('Shiharai', function () {
       await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
       await shirahaiContract.deposit(erc20.address, issueAgreement.amount)
       await shirahaiContract.issueAgreement(...Object.values(issueAgreement))
-      ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
-      Ctoken = IERC20__factory.connect(ctoken, owner)
-      days = 60 * 60 * 24
     })
 
     it('successfully continue agreeemnt', async () => {
@@ -394,10 +381,7 @@ describe('Shiharai', function () {
 
   describe('continueAgreement', () => {
     let issueAgreement: any,
-      nextMonth: number,
-      ctoken: string,
-      Ctoken: IERC20,
-      days: number
+      nextMonth: number
 
     beforeEach(async () => {
       const now = new Date()
@@ -420,9 +404,6 @@ describe('Shiharai', function () {
       await erc20.approve(shirahaiContract.address, ethers.constants.MaxUint256)
       await shirahaiContract.deposit(erc20.address, issueAgreement.amount)
       await shirahaiContract.issueAgreement(...Object.values(issueAgreement))
-      ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
-      Ctoken = IERC20__factory.connect(ctoken, owner)
-      days = 60 * 60 * 24
 
       await shirahaiContract.connect(alice).confirmAgreement(1)
     })
