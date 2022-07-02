@@ -15,6 +15,11 @@ const increaseTime = async (seconds: number) => {
   await ethers.provider.send('evm_mine', [])
 }
 
+const setTimeAs = async (unixTime: number) => {
+  await ethers.provider.send('evm_setNextBlockTimestamp', [unixTime])
+  await ethers.provider.send('evm_mine', [])
+}
+
 describe('Shiharai', function () {
   let shirahaiContract: Contract,
     owner: SignerWithAddress,
@@ -555,14 +560,14 @@ describe('Shiharai', function () {
 
     it('successfully claim', async () => {
       const days = 60 * 60 * 24
-      await increaseTime(days * 40)
+      await setTimeAs(nextMonth + days * 60)
       const amount = await shirahaiContract.amountToBePiad(1)
       const delta = issueVestingAgreement.amount.div(
         issueVestingAgreement.vestingDuration
       )
       const fromEstimatedAmount = delta.mul(
         Math.ceil(
-          (nextMonth + 5 * days - issueVestingAgreement.cliffEndedAt) / days
+          (nextMonth + days * 60 - issueVestingAgreement.cliffEndedAt) / days
         )
       )
       expect(amount).to.be.closeTo(fromEstimatedAmount, utils.parseEther('1'))
