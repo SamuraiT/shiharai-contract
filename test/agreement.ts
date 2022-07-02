@@ -113,7 +113,6 @@ describe('Shiharai', function () {
       ctoken = await shirahaiContract.supportedTokensMap(erc20.address)
       Ctoken = IERC20__factory.connect(ctoken, owner)
       days = 60 * 60 * 24
-
     })
 
     it('successfully continue agreeemnt', async () => {
@@ -388,7 +387,7 @@ describe('Shiharai', function () {
       ).to.eq(0)
 
       await expect(shirahaiContract.connect(alice).claim(1)).to.be.revertedWith(
-        'INVALID: ALRWADY CLAIMED'
+        'INVALID: PAID ALL AMOUNT'
       )
     })
   })
@@ -481,7 +480,6 @@ describe('Shiharai', function () {
         shirahaiContract,
         'ContinueAgreement'
       )
-
     })
   })
 })

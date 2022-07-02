@@ -21,6 +21,5 @@ describe('Shiharai', function () {
     await shirahaiContract.deployed()
   })
 
-  describe('setSupportedToken', () => {
-  })
+  describe('setSupportedToken', () => {})
 })

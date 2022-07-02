@@ -7,13 +7,14 @@ import 'dotenv/config'
 
 const main = async () => {
   const Usdc = await ethers.getContractFactory('MockERC20')
-  const usdc = await Usdc.attach('')
+  const usdc = await Usdc.attach('0x6FDCcffcb7e61EB05fa63d8830633E8105B90025')
 
   console.log('usdc', usdc.address)
   const accounts = JSON.parse(process.env.ACCOUNTS || '')
   const amount = ethers.utils.parseUnits('5000000', 18)
   for (const account of accounts) {
-    usdc.mint(account, amount)
+    await usdc.mint(account, amount)
+    console.log('mint to', account, amount.toString())
   }
 }
 
