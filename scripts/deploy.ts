@@ -7,15 +7,13 @@ import { ethers } from 'hardhat'
 
 const main = async () => {
   const Usdc = await ethers.getContractFactory('MockERC20')
-  const usdc = await Usdc.deploy('test-usdc')
-  await usdc.deployed()
+  const usdc = await Usdc.attach('0x6FDCcffcb7e61EB05fa63d8830633E8105B90025')
 
   console.log('usdc', usdc.address)
-  const [owner] = await ethers.getSigners()
   const Shihari = await ethers.getContractFactory('Shiharai')
   const shihari = await Shihari.deploy(usdc.address)
   await shihari.deployed()
-  await usdc.mint(owner.address, ethers.utils.parseUnits('500000000000000', 18))
+
   console.log('shihari deployed to:', shihari.address)
 }
 

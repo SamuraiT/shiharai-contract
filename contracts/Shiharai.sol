@@ -8,14 +8,19 @@ import "./Ctoken.sol";
 contract Shiharai {
     using Counters for Counters.Counter;
     Counters.Counter private _agreemtnIds;
+    Counters.Counter private _vestingId;
 
     // key is token address to pay, and value is redeemable tokenX
     mapping(address => address) public supportedTokensMap;
 
     struct VestingCondition {
-        uint256 cliff; // days
-        uint256 duration; // days
+        uint256 agreementId;
+        uint256 cliffEndedAt; // should be date
+        uint256 vestingDuration; // days
         uint256 revokeDays; // anytime -> 1day, each 3month -> 90
+        uint256 paidAt;
+        uint256 paidAmount;
+        uint256 amount;
     }
 
     struct TokenAmount {
@@ -33,10 +38,9 @@ contract Shiharai {
         uint256 term;
         uint256 issuedAt;
         uint256 confirmedAt;
-        uint256 paysAt; // unixtime stamp for vesting it would be 0.
+        uint256 paysAt;
         uint256 endedAt;
         uint256 nextAgreementId;
-        uint256 paidAt;
     }
 
     mapping(address => mapping(address => uint256)) public depositedAmountMap;
@@ -46,12 +50,15 @@ contract Shiharai {
     // this way we can confirm reserved amount for payout
     mapping(address => mapping(address => uint256)) public reservedAmount;
     mapping(uint256 => TokenAmount) public redeemedAmountMap; // tokenX
-    mapping(uint256 => VestingCondition) public vestingConditionMap;
+    mapping(uint256 => VestingCondition) public vestings;
     mapping(uint256 => Agreement) public agreements;
+    mapping(uint256 => uint256) public vestingOfAgreement;
     mapping(address => uint256[]) public issuerAgreementsIds;
     mapping(address => uint256[]) public undertakenAgreementIds;
 
-    constructor(address _erc20) {}
+    constructor(address erc20) {
+        setSupportedToken(erc20);
+    }
 
     // evnet
     event ConfirmAgreement(
@@ -112,6 +119,31 @@ contract Shiharai {
         uint256 _term,
         uint256 _paysAt
     ) public returns (uint256 id) {
+        return
+            vestingAgreement(
+                _name,
+                _with,
+                _token,
+                _amount,
+                _term,
+                _paysAt,
+                _paysAt,
+                0,
+                0
+            );
+    }
+
+    function vestingAgreement(
+        bytes32 _name,
+        address _with,
+        address _token,
+        uint256 _amount,
+        uint256 _term,
+        uint256 _paysAt,
+        uint256 _cliffEnededAt,
+        uint256 _vestingDuration,
+        uint256 _revokeDays
+    ) public returns (uint256 agreementId) {
         _agreemtnIds.increment();
         uint256 _newAgId = _agreemtnIds.current();
         _issueAgreement(
@@ -123,6 +155,19 @@ contract Shiharai {
             _term,
             _paysAt
         );
+        _vestingId.increment();
+        uint256 vid = _vestingId.current();
+        // if cliffEnededAt 0 and vesting duration is 0 and revokeDays is same as pays at then it will be same as normal payment
+        vestings[vid] = VestingCondition({
+            agreementId: _newAgId,
+            cliffEndedAt: _cliffEnededAt,
+            vestingDuration: _vestingDuration,
+            revokeDays: _revokeDays,
+            paidAt: 0,
+            paidAmount: 0,
+            amount: _amount
+        });
+        vestingOfAgreement[_newAgId] = vid;
         return _newAgId;
     }
 
@@ -158,13 +203,20 @@ contract Shiharai {
             confirmedAt: 0,
             paysAt: _paysAt,
             endedAt: 0,
-            nextAgreementId: 0,
-            paidAt: 0
+            nextAgreementId: 0
         });
         reservedAmount[msg.sender][_token] -= _amount;
         issuerAgreementsIds[msg.sender].push(_id);
         agreements[_id] = ag;
         emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
+    }
+
+    function getVestingInfo(uint256 _agreementId)
+        public
+        view
+        returns (VestingCondition memory)
+    {
+        return vestings[vestingOfAgreement[_agreementId]];
     }
 
     function deposit(address _token, uint256 _amount) public {
@@ -189,6 +241,31 @@ contract Shiharai {
     ) public {
         deposit(_token, _amount);
         issueAgreement(_name, _with, _token, _amount, _term, _paysAt);
+    }
+
+    function depositAndissueVestingAgreement(
+        bytes32 _name,
+        address _with,
+        address _token,
+        uint256 _amount,
+        uint256 _term,
+        uint256 _paysAt,
+        uint256 _cliffEnededAt,
+        uint256 _vestingDuration,
+        uint256 _revokeDays
+    ) public {
+        deposit(_token, _amount);
+        vestingAgreement(
+            _name,
+            _with,
+            _token,
+            _amount,
+            _term,
+            _paysAt,
+            _cliffEnededAt,
+            _vestingDuration,
+            _revokeDays
+        );
     }
 
     function getIssuersAgreements(address protocol)
@@ -287,49 +364,98 @@ contract Shiharai {
         );
     }
 
+    // let t2 be current time. and t1 be the time which undertaker claimed (contract paid out)
+    // let amount be total amount to be paid to undertaker
+    // let vDuration be the vesting duration
+    // paidAmount(t1, t2) =
+    // amount/vDuration * (t2 - cliff_time)/1 day | if vDuration > 0 and t1(paid_at) == 0
+    // amount | if vDuration == 0 and t1(paid_at) == 0
+    // amount/vDuration * (t2 - t1)/1 day - paidAmount(0, t1) | if vDuration == 0 and t1(paid_at) == 0
+    function amountToBePiad(uint256 _id) public view returns (uint256 amount) {
+        uint256 _now = block.timestamp;
+        uint256 vid = vestingOfAgreement[_id];
+        require(_now >= vestings[vid].cliffEndedAt, "INVALID: BEFORE PAYDAYS");
+        uint256 passedDays;
+        if (vestings[vid].vestingDuration > 0 && vestings[vid].paidAt == 0) {
+            passedDays = (_now - vestings[vid].cliffEndedAt) / 1 days;
+            uint256 delta = vestings[vid].amount /
+                vestings[vid].vestingDuration;
+            return delta * passedDays;
+        }
+
+        if (vestings[vid].vestingDuration == 0 && vestings[vid].paidAt == 0) {
+            return vestings[vid].amount;
+        }
+
+        if (vestings[vid].vestingDuration > 0 && vestings[vid].paidAt > 0) {
+            passedDays = (_now - vestings[vid].paidAt) / 1 days;
+            uint256 delta = vestings[vid].amount /
+                vestings[vid].vestingDuration;
+            return
+                delta *
+                ((_now - vestings[vid].paidAt) / 1 days) -
+                vestings[vid].paidAmount;
+        }
+    }
+
+    function isExceedingRevokeDays(uint256 _id) public view returns (bool) {
+        uint256 _now = block.timestamp;
+        uint256 vid = vestingOfAgreement[_id];
+        if (vestings[vid].paidAt == 0) {
+            return
+                ((_now - vestings[vid].cliffEndedAt) / 1 days) >=
+                vestings[vid].revokeDays;
+        }
+        return
+            ((_now - vestings[vid].paidAt) / 1 days) >=
+            vestings[vid].revokeDays;
+    }
+
     function claim(uint256 _id) public {
         require(
             agreements[_id].undertaker == msg.sender,
             "INVALID: NOT THE UNDERTAKER"
         );
-        require(agreements[_id].paidAt == 0, "INVALID: ALRWADY CLAIMED");
         // exchange with ctoken
+        uint256 vid = vestingOfAgreement[_id];
+        require(
+            vestings[vid].paidAmount < vestings[vid].amount,
+            "INVALID: PAID ALL AMOUNT"
+        );
+        require(
+            block.timestamp >= vestings[vid].cliffEndedAt,
+            "INVALID: BEFORE PAY DAY OR CLIFF"
+        );
         ICtoken cToken = ICtoken(createOrGetCToken(agreements[_id].payment));
         require(
-            cToken.balanceOf(msg.sender) >= agreements[_id].amount,
+            cToken.balanceOf(msg.sender) >=
+                (agreements[_id].amount - vestings[vid].paidAmount),
             "cToken is insufficient"
         );
-        require(
-            block.timestamp >= agreements[_id].paysAt,
-            "INVALID: BEFORE PAY DAY"
-        );
-        bool cSuccess = cToken.transferFrom(
-            msg.sender,
-            address(this),
-            agreements[_id].amount
-        );
+        uint256 amount = amountToBePiad(_id);
+        require(isExceedingRevokeDays(_id), "INVALID: WAIT UNTILS REVOKE DAYS");
+        bool cSuccess = cToken.transferFrom(msg.sender, address(this), amount);
         require(cSuccess, "cToken TRANSFER FAILED");
-        cToken.burn(agreements[_id].amount);
+        cToken.burn(amount);
 
         depositedAmountMap[agreements[_id].issuer][
             agreements[_id].payment
-        ] -= agreements[_id].amount;
+        ] -= amount;
+        vestings[vid].paidAmount += amount;
+        vestings[vid].paidAt = block.timestamp;
         bool oSuccess = IERC20(agreements[_id].payment).transfer(
             msg.sender,
-            agreements[_id].amount
+            amount
         );
         require(oSuccess, "oToken TRANSFER FAILED");
-        agreements[_id].paidAt = block.timestamp;
-        emit Claimed(
-            msg.sender,
-            agreements[_id].payment,
-            agreements[_id].amount
-        );
+        emit Claimed(msg.sender, agreements[_id].payment, amount);
     }
 
     function modifyPayDay(uint256 _id, uint256 payDay) public onlyIssure(_id) {
         require(payDay <= agreements[_id].paysAt, "INVALID: SET EALIER DATE");
         agreements[_id].paysAt = payDay;
+        uint256 vid = vestingOfAgreement[_id];
+        vestings[vid].cliffEndedAt = payDay;
     }
 
     function claimForLendingProctol() public {
