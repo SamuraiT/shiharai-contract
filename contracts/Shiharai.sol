@@ -211,6 +211,12 @@ contract Shiharai {
         emit IssuedAgreement(_id, msg.sender, _with, _token, _amount, _paysAt);
     }
 
+    function getVestingInfo(uint256 _agreementId) public view returns(VestingCondition memory) {
+        return vestings[
+            vestingOfAgreement[_agreementId]
+        ];
+    }
+
     function deposit(address _token, uint256 _amount) public {
         IERC20Metadata oToken = IERC20Metadata(_token);
         require(oToken.balanceOf(msg.sender) >= _amount, "INSUFFICIENT AMOUNT");
